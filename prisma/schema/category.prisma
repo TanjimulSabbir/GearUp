@@ -1,13 +1,13 @@
 model Category {
-  id          String @id @default(uuid())
+    id String @id @default(uuid())
 
-  name        String @unique
-  slug        String @unique
+    name String @unique
+    slug String @unique
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-  gearItems   GearItem[]
+    gearItems GearItem[]
 
-   @@map("Category")
+    @@map("Category")
 }

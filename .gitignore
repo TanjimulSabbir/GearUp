@@ -1,10 +1,6 @@
 node_modules
 dist
-generated
 .env
-/generated/prisma
-src/config/firebase-admin.json
 .vercel
-generated
 
 README.md
