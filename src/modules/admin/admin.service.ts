@@ -1,6 +1,7 @@
-import { UserStatus } from "@prisma/client";
-import { prisma } from "../../config/prisma";
-import { AppError } from "../../utils/AppError";
+import { AccountStatus } from "../../../generated/prisma/enums";
+import { prisma } from "../../lib/prisma";
+import AppError from "../../utils/errors/app.error";
+import httpStatus from "http-status";
 
 export const adminService = {
   async getAllUsers() {
@@ -18,17 +19,31 @@ export const adminService = {
     });
   },
 
-  async updateUserStatus(userId: string, status: UserStatus) {
+  async updateUserStatus(userId: string, accountStatus: AccountStatus) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw AppError.notFound("User not found");
+    if (!user)
+      throw new AppError(
+        httpStatus.NOT_FOUND,
+        "Your account has been not found. Please contact support.",
+      );
+
     if (user.role === "ADMIN") {
-      throw AppError.forbidden("Cannot change the status of an admin account");
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You cannot block or unblock an admin account.",
+      );
     }
 
-    return prisma.user.update({
+    return await prisma.user.update({
       where: { id: userId },
-      data: { status },
-      select: { id: true, name: true, email: true, role: true, status: true },
+      data: { accountStatus, isActive: accountStatus === "ACTIVE" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        accountStatus: true,
+      },
     });
   },
 
@@ -47,7 +62,9 @@ export const adminService = {
       include: {
         customer: { select: { id: true, name: true, email: true } },
         items: { include: { gearItem: { select: { id: true, name: true } } } },
-        payments: { select: { id: true, status: true, amount: true, method: true } },
+        payments: {
+          select: { id: true, status: true, amount: true, method: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });

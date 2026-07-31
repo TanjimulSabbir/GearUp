@@ -9,7 +9,8 @@ model User {
   phone   String?
   address String?
 
-  isActive Boolean @default(true)
+  isActive      Boolean       @default(true)
+  accountStatus AccountStatus @default(ACTIVE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

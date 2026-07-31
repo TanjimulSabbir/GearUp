@@ -33,6 +33,7 @@ export type UserMinAggregateOutputType = {
   phone: string | null
   address: string | null
   isActive: boolean | null
+  accountStatus: $Enums.AccountStatus | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -46,6 +47,7 @@ export type UserMaxAggregateOutputType = {
   phone: string | null
   address: string | null
   isActive: boolean | null
+  accountStatus: $Enums.AccountStatus | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -59,6 +61,7 @@ export type UserCountAggregateOutputType = {
   phone: number
   address: number
   isActive: number
+  accountStatus: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -74,6 +77,7 @@ export type UserMinAggregateInputType = {
   phone?: true
   address?: true
   isActive?: true
+  accountStatus?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -87,6 +91,7 @@ export type UserMaxAggregateInputType = {
   phone?: true
   address?: true
   isActive?: true
+  accountStatus?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -100,6 +105,7 @@ export type UserCountAggregateInputType = {
   phone?: true
   address?: true
   isActive?: true
+  accountStatus?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -186,6 +192,7 @@ export type UserGroupByOutputType = {
   phone: string | null
   address: string | null
   isActive: boolean
+  accountStatus: $Enums.AccountStatus
   createdAt: Date
   updatedAt: Date
   _count: UserCountAggregateOutputType | null
@@ -220,6 +227,7 @@ export type UserWhereInput = {
   phone?: Prisma.StringNullableFilter<"User"> | string | null
   address?: Prisma.StringNullableFilter<"User"> | string | null
   isActive?: Prisma.BoolFilter<"User"> | boolean
+  accountStatus?: Prisma.EnumAccountStatusFilter<"User"> | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   gears?: Prisma.GearItemListRelationFilter
@@ -237,6 +245,7 @@ export type UserOrderByWithRelationInput = {
   phone?: Prisma.SortOrderInput | Prisma.SortOrder
   address?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  accountStatus?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   gears?: Prisma.GearItemOrderByRelationAggregateInput
@@ -257,6 +266,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   phone?: Prisma.StringNullableFilter<"User"> | string | null
   address?: Prisma.StringNullableFilter<"User"> | string | null
   isActive?: Prisma.BoolFilter<"User"> | boolean
+  accountStatus?: Prisma.EnumAccountStatusFilter<"User"> | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   gears?: Prisma.GearItemListRelationFilter
@@ -274,6 +284,7 @@ export type UserOrderByWithAggregationInput = {
   phone?: Prisma.SortOrderInput | Prisma.SortOrder
   address?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  accountStatus?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
@@ -293,6 +304,7 @@ export type UserScalarWhereWithAggregatesInput = {
   phone?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   address?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   isActive?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
+  accountStatus?: Prisma.EnumAccountStatusWithAggregatesFilter<"User"> | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
 }
@@ -306,6 +318,7 @@ export type UserCreateInput = {
   phone?: string | null
   address?: string | null
   isActive?: boolean
+  accountStatus?: $Enums.AccountStatus
   createdAt?: Date | string
   updatedAt?: Date | string
   gears?: Prisma.GearItemCreateNestedManyWithoutProviderInput
@@ -323,6 +336,7 @@ export type UserUncheckedCreateInput = {
   phone?: string | null
   address?: string | null
   isActive?: boolean
+  accountStatus?: $Enums.AccountStatus
   createdAt?: Date | string
   updatedAt?: Date | string
   gears?: Prisma.GearItemUncheckedCreateNestedManyWithoutProviderInput
@@ -340,6 +354,7 @@ export type UserUpdateInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  accountStatus?: Prisma.EnumAccountStatusFieldUpdateOperationsInput | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   gears?: Prisma.GearItemUpdateManyWithoutProviderNestedInput
@@ -357,6 +372,7 @@ export type UserUncheckedUpdateInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  accountStatus?: Prisma.EnumAccountStatusFieldUpdateOperationsInput | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   gears?: Prisma.GearItemUncheckedUpdateManyWithoutProviderNestedInput
@@ -374,6 +390,7 @@ export type UserCreateManyInput = {
   phone?: string | null
   address?: string | null
   isActive?: boolean
+  accountStatus?: $Enums.AccountStatus
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -387,6 +404,7 @@ export type UserUpdateManyMutationInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  accountStatus?: Prisma.EnumAccountStatusFieldUpdateOperationsInput | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -400,6 +418,7 @@ export type UserUncheckedUpdateManyInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  accountStatus?: Prisma.EnumAccountStatusFieldUpdateOperationsInput | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -418,6 +437,7 @@ export type UserCountOrderByAggregateInput = {
   phone?: Prisma.SortOrder
   address?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  accountStatus?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -431,6 +451,7 @@ export type UserMaxOrderByAggregateInput = {
   phone?: Prisma.SortOrder
   address?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  accountStatus?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -444,6 +465,7 @@ export type UserMinOrderByAggregateInput = {
   phone?: Prisma.SortOrder
   address?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  accountStatus?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -508,6 +530,10 @@ export type EnumRoleFieldUpdateOperationsInput = {
   set?: $Enums.Role
 }
 
+export type EnumAccountStatusFieldUpdateOperationsInput = {
+  set?: $Enums.AccountStatus
+}
+
 export type UserCreateWithoutGearsInput = {
   id?: string
   name: string
@@ -517,6 +543,7 @@ export type UserCreateWithoutGearsInput = {
   phone?: string | null
   address?: string | null
   isActive?: boolean
+  accountStatus?: $Enums.AccountStatus
   createdAt?: Date | string
   updatedAt?: Date | string
   rentals?: Prisma.RentalOrderCreateNestedManyWithoutCustomerInput
@@ -533,6 +560,7 @@ export type UserUncheckedCreateWithoutGearsInput = {
   phone?: string | null
   address?: string | null
   isActive?: boolean
+  accountStatus?: $Enums.AccountStatus
   createdAt?: Date | string
   updatedAt?: Date | string
   rentals?: Prisma.RentalOrderUncheckedCreateNestedManyWithoutCustomerInput
@@ -565,6 +593,7 @@ export type UserUpdateWithoutGearsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  accountStatus?: Prisma.EnumAccountStatusFieldUpdateOperationsInput | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   rentals?: Prisma.RentalOrderUpdateManyWithoutCustomerNestedInput
@@ -581,6 +610,7 @@ export type UserUncheckedUpdateWithoutGearsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  accountStatus?: Prisma.EnumAccountStatusFieldUpdateOperationsInput | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   rentals?: Prisma.RentalOrderUncheckedUpdateManyWithoutCustomerNestedInput
@@ -597,6 +627,7 @@ export type UserCreateWithoutProfileInput = {
   phone?: string | null
   address?: string | null
   isActive?: boolean
+  accountStatus?: $Enums.AccountStatus
   createdAt?: Date | string
   updatedAt?: Date | string
   gears?: Prisma.GearItemCreateNestedManyWithoutProviderInput
@@ -613,6 +644,7 @@ export type UserUncheckedCreateWithoutProfileInput = {
   phone?: string | null
   address?: string | null
   isActive?: boolean
+  accountStatus?: $Enums.AccountStatus
   createdAt?: Date | string
   updatedAt?: Date | string
   gears?: Prisma.GearItemUncheckedCreateNestedManyWithoutProviderInput
@@ -645,6 +677,7 @@ export type UserUpdateWithoutProfileInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  accountStatus?: Prisma.EnumAccountStatusFieldUpdateOperationsInput | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   gears?: Prisma.GearItemUpdateManyWithoutProviderNestedInput
@@ -661,6 +694,7 @@ export type UserUncheckedUpdateWithoutProfileInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  accountStatus?: Prisma.EnumAccountStatusFieldUpdateOperationsInput | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   gears?: Prisma.GearItemUncheckedUpdateManyWithoutProviderNestedInput
@@ -677,6 +711,7 @@ export type UserCreateWithoutRentalsInput = {
   phone?: string | null
   address?: string | null
   isActive?: boolean
+  accountStatus?: $Enums.AccountStatus
   createdAt?: Date | string
   updatedAt?: Date | string
   gears?: Prisma.GearItemCreateNestedManyWithoutProviderInput
@@ -693,6 +728,7 @@ export type UserUncheckedCreateWithoutRentalsInput = {
   phone?: string | null
   address?: string | null
   isActive?: boolean
+  accountStatus?: $Enums.AccountStatus
   createdAt?: Date | string
   updatedAt?: Date | string
   gears?: Prisma.GearItemUncheckedCreateNestedManyWithoutProviderInput
@@ -725,6 +761,7 @@ export type UserUpdateWithoutRentalsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  accountStatus?: Prisma.EnumAccountStatusFieldUpdateOperationsInput | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   gears?: Prisma.GearItemUpdateManyWithoutProviderNestedInput
@@ -741,6 +778,7 @@ export type UserUncheckedUpdateWithoutRentalsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  accountStatus?: Prisma.EnumAccountStatusFieldUpdateOperationsInput | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   gears?: Prisma.GearItemUncheckedUpdateManyWithoutProviderNestedInput
@@ -757,6 +795,7 @@ export type UserCreateWithoutReviewsInput = {
   phone?: string | null
   address?: string | null
   isActive?: boolean
+  accountStatus?: $Enums.AccountStatus
   createdAt?: Date | string
   updatedAt?: Date | string
   gears?: Prisma.GearItemCreateNestedManyWithoutProviderInput
@@ -773,6 +812,7 @@ export type UserUncheckedCreateWithoutReviewsInput = {
   phone?: string | null
   address?: string | null
   isActive?: boolean
+  accountStatus?: $Enums.AccountStatus
   createdAt?: Date | string
   updatedAt?: Date | string
   gears?: Prisma.GearItemUncheckedCreateNestedManyWithoutProviderInput
@@ -805,6 +845,7 @@ export type UserUpdateWithoutReviewsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  accountStatus?: Prisma.EnumAccountStatusFieldUpdateOperationsInput | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   gears?: Prisma.GearItemUpdateManyWithoutProviderNestedInput
@@ -821,6 +862,7 @@ export type UserUncheckedUpdateWithoutReviewsInput = {
   phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  accountStatus?: Prisma.EnumAccountStatusFieldUpdateOperationsInput | $Enums.AccountStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   gears?: Prisma.GearItemUncheckedUpdateManyWithoutProviderNestedInput
@@ -886,6 +928,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   phone?: boolean
   address?: boolean
   isActive?: boolean
+  accountStatus?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   gears?: boolean | Prisma.User$gearsArgs<ExtArgs>
@@ -904,6 +947,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   phone?: boolean
   address?: boolean
   isActive?: boolean
+  accountStatus?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
@@ -917,6 +961,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   phone?: boolean
   address?: boolean
   isActive?: boolean
+  accountStatus?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
@@ -930,11 +975,12 @@ export type UserSelectScalar = {
   phone?: boolean
   address?: boolean
   isActive?: boolean
+  accountStatus?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "password" | "role" | "phone" | "address" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "password" | "role" | "phone" | "address" | "isActive" | "accountStatus" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   gears?: boolean | Prisma.User$gearsArgs<ExtArgs>
   rentals?: boolean | Prisma.User$rentalsArgs<ExtArgs>
@@ -962,6 +1008,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     phone: string | null
     address: string | null
     isActive: boolean
+    accountStatus: $Enums.AccountStatus
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["user"]>
@@ -1399,6 +1446,7 @@ export interface UserFieldRefs {
   readonly phone: Prisma.FieldRef<"User", 'String'>
   readonly address: Prisma.FieldRef<"User", 'String'>
   readonly isActive: Prisma.FieldRef<"User", 'Boolean'>
+  readonly accountStatus: Prisma.FieldRef<"User", 'AccountStatus'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"User", 'DateTime'>
 }

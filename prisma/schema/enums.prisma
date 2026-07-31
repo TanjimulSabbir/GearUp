@@ -30,3 +30,9 @@ enum GearCondition {
   FAIR
   DAMAGED
 }
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}

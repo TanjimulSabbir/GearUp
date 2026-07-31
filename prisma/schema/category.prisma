@@ -4,6 +4,8 @@ model Category {
     name String @unique
     slug String @unique
 
+    description String
+
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 

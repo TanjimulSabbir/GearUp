@@ -55,3 +55,12 @@ export const GearCondition = {
 } as const
 
 export type GearCondition = (typeof GearCondition)[keyof typeof GearCondition]
+
+
+export const AccountStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  BANNED: 'BANNED'
+} as const
+
+export type AccountStatus = (typeof AccountStatus)[keyof typeof AccountStatus]

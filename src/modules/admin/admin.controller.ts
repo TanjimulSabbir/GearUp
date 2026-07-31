@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import httpStatus from "http-status";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { adminService } from "./admin.service";
@@ -7,37 +8,74 @@ import { categoryService } from "../category/category.service";
 export const adminController = {
   getAllUsers: catchAsync(async (_req: Request, res: Response) => {
     const users = await adminService.getAllUsers();
-    sendResponse(res, { statusCode: 200, message: "All users fetched", data: users });
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "All users fetched",
+      data: users,
+    });
   }),
 
   updateUserStatus: catchAsync(async (req: Request, res: Response) => {
-    const user = await adminService.updateUserStatus(req.params.id, req.body.status);
-    sendResponse(res, { statusCode: 200, message: "User status updated", data: user });
+    const user = await adminService.updateUserStatus(
+      req.params.id as string,
+      req.body.accountStatus,
+    );
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "User status updated",
+      data: user,
+    });
   }),
 
   getAllGear: catchAsync(async (_req: Request, res: Response) => {
     const gear = await adminService.getAllGear();
-    sendResponse(res, { statusCode: 200, message: "All gear listings fetched", data: gear });
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "All gear listings fetched",
+      data: gear,
+    });
   }),
 
   getAllRentals: catchAsync(async (_req: Request, res: Response) => {
     const rentals = await adminService.getAllRentals();
-    sendResponse(res, { statusCode: 200, message: "All rental orders fetched", data: rentals });
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "All rental orders fetched",
+      data: rentals,
+    });
   }),
 
-  // Category management (admin)
   createCategory: catchAsync(async (req: Request, res: Response) => {
     const category = await categoryService.create(req.body);
-    sendResponse(res, { statusCode: 201, message: "Category created", data: category });
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.CREATED,
+      message: "Category created",
+      data: category,
+    });
   }),
 
   updateCategory: catchAsync(async (req: Request, res: Response) => {
     const category = await categoryService.update(req.params.id, req.body);
-    sendResponse(res, { statusCode: 200, message: "Category updated", data: category });
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Category updated",
+      data: category,
+    });
   }),
 
   deleteCategory: catchAsync(async (req: Request, res: Response) => {
     await categoryService.remove(req.params.id);
-    sendResponse(res, { statusCode: 200, message: "Category deleted" });
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Category deleted",
+      data: null,
+    });
   }),
 };

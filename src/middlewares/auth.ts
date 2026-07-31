@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { JwtPayload } from "jsonwebtoken";
-import { Role } from "../../generated/prisma/enums";
+import { AccountStatus, Role } from "../../generated/prisma/enums";
 import config from "../config/index";
 import { prisma } from "../lib/prisma";
 import { catchAsync } from "../utils/catchAsync";
@@ -15,7 +15,7 @@ declare module "express" {
       name: string;
       id: string;
       role: Role;
-      fcmToken: string | null;
+      accountStatus: AccountStatus;
     };
   }
 }
@@ -54,10 +54,10 @@ export const auth = (...requiredRoles: Role[]) => {
       );
     }
 
-    if (user.activeStatus === "BLOCKED") {
+    if (user.accountStatus === "BANNED") {
       throw new AppError(
         httpStatus.FORBIDDEN,
-        "Your account has been blocked. Please contact support.",
+        "Your account has been Banned. Please contact support.",
       );
     }
 
@@ -73,7 +73,7 @@ export const auth = (...requiredRoles: Role[]) => {
       email: user.email,
       name: user.name,
       role: user.role,
-      fcmToken: user.fcmToken,
+      accountStatus: user.accountStatus,
     };
 
     next();
