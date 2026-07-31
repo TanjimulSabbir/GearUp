@@ -5,8 +5,8 @@ generated
 /generated/prisma
 src/config/firebase-admin.json
 .vercel
-/src/modules
 prisma
 generated
-app.ts
-src
+/src/modules
+
+README.md
