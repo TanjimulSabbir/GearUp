@@ -7,6 +7,5 @@ src/config/firebase-admin.json
 .vercel
 prisma
 generated
-/src/modules
 
 README.md
