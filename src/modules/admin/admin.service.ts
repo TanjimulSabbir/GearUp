@@ -47,14 +47,37 @@ export const adminService = {
     });
   },
 
-  async getAllGear() {
-    return prisma.gearItem.findMany({
-      include: {
-        category: { select: { id: true, name: true } },
-        provider: { select: { id: true, name: true, email: true } },
+  async getAllGear(query: any) {
+    const limit = Number(query.limit ?? 10);
+    const page = Number(query.page ?? 1);
+    const skip = (page - 1) * limit;
+    const sortBy = query.sortBy ?? "createdAt";
+    const sortOrder = query.sortOrder ?? "desc";
+
+    const [items, totalPostCount] = await Promise.all([
+      prisma.gearItem.findMany({
+        skip,
+        take: limit,
+        include: {
+          category: { select: { id: true, name: true } },
+          provider: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: {
+          [sortBy]: sortOrder,
+        },
+      }),
+      prisma.gearItem.count(),
+    ]);
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        total: totalPostCount,
+        totalPages: Math.ceil(totalPostCount / limit),
       },
-      orderBy: { createdAt: "desc" },
-    });
+    };
   },
 
   async getAllRentals() {

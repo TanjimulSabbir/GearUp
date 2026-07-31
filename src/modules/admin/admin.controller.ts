@@ -29,8 +29,8 @@ export const adminController = {
     });
   }),
 
-  getAllGear: catchAsync(async (_req: Request, res: Response) => {
-    const gear = await adminService.getAllGear();
+  getAllGear: catchAsync(async (req: Request, res: Response) => {
+    const gear = await adminService.getAllGear(req.query);
     sendResponse(res, {
       success: true,
       statusCode: httpStatus.OK,
