@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini Social Feed API</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 48px 20px 32px;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    h1 {
+      font-size: 26px;
+      margin-bottom: 8px;
+    }
+    header p {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #14532d;
+      color: #86efac;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-top: 12px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+    }
+
+    /* About section */
+    .about {
+      background: linear-gradient(135deg, #1e293b 0%, #172033 100%);
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 24px 22px;
+      margin-bottom: 28px;
+    }
+    .about h2 {
+      font-size: 15px;
+      color: #a3e635;
+      margin-bottom: 10px;
+      letter-spacing: 0.3px;
+    }
+    .about p {
+      font-size: 13.5px;
+      line-height: 1.7;
+      color: #cbd5e1;
+      margin-bottom: 10px;
+    }
+    .about p:last-child { margin-bottom: 0; }
+    .stack-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 14px;
+    }
+    .stack-chip {
+      font-size: 11px;
+      color: #94a3b8;
+      background: #0f172a;
+      border: 1px solid #253347;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-family: "SF Mono", monospace;
+    }
+
+    .section-label {
+      font-size: 12px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      margin-top: 4px;
+    }
+
+    .group {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .group-title {
+      padding: 14px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #cbd5e1;
+      border-bottom: 1px solid #334155;
+      background: #172033;
+    }
+    .endpoint {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      border-bottom: 1px solid #253347;
+      font-family: "SF Mono", monospace;
+      font-size: 13px;
+    }
+    .endpoint:last-child { border-bottom: none; }
+    .method {
+      flex-shrink: 0;
+      width: 56px;
+      text-align: center;
+      padding: 3px 0;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .GET { background: #164e63; color: #67e8f9; }
+    .POST { background: #14532d; color: #86efac; }
+    .PATCH { background: #713f12; color: #fde68a; }
+    .DELETE { background: #7f1d1d; color: #fca5a5; }
+    .path { color: #e2e8f0; }
+    .auth-tag {
+      margin-left: auto;
+      font-size: 10px;
+      color: #64748b;
+      font-family: -apple-system, sans-serif;
+    }
+    .admin-tag {
+      margin-left: auto;
+      font-size: 10px;
+      color: #fca5a5;
+      font-family: -apple-system, sans-serif;
+      font-weight: 600;
+    }
+
+    .resources {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+    .resource-link {
+      flex: 1;
+      min-width: 180px;
+      text-decoration: none;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 14px 16px;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+    .resource-link:hover {
+      border-color: #a3e635;
+      transform: translateY(-1px);
+    }
+    .resource-link .label {
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .resource-link .value {
+      font-size: 13px;
+      color: #a3e635;
+      font-family: "SF Mono", monospace;
+      font-weight: 600;
+    }
+
+    /* Footer / developer credit */
+    footer {
+      margin-top: 40px;
+      padding-top: 28px;
+      border-top: 1px solid #253347;
+      text-align: center;
+    }
+    .footer-label {
+      font-size: 11px;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 12px;
+    }
+    .dev-name {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #a3e635 0%, #65a30d 50%, #a3e635 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: shine 3s linear infinite;
+      display: inline-block;
+    }
+    @keyframes shine {
+      to { background-position: 200% center; }
+    }
+    .dev-role {
+      font-size: 12.5px;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+    .dev-links {
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+      margin-top: 16px;
+    }
+    .dev-links a {
+      color: #64748b;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid #253347;
+      transition: color 0.2s ease, border-color 0.2s ease;
+    }
+    .dev-links a:hover {
+      color: #a3e635;
+      border-color: #a3e635;
+    }
+    .footer-tag {
+      margin-top: 18px;
+      font-size: 11px;
+      color: #334155;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Mini Social Feed API</h1>
+      <p>Base URL: <code>/api</code></p>
+      <div class="status"><span class="dot"></span>Online</div>
+    </header>
+
+    <div class="about">
+      <h2>ABOUT THIS API</h2>
+      <p>
+        This is the backend service powering <strong>MiniSocial</strong> — a mini social
+        media application supporting user authentication, posts with tags, comments,
+        likes, and real-time push notifications delivered via Firebase Cloud Messaging.
+      </p>
+      <p>
+        Built with a token-based auth flow (short-lived access tokens + HTTP-only
+        refresh cookies), role-based access control (USER / AUTHOR / ADMIN), and a
+        relational data model connecting users, posts, comments, likes, and
+        notifications end-to-end.
+      </p>
+      <div class="stack-row">
+        <span class="stack-chip">Node.js</span>
+        <span class="stack-chip">Express</span>
+        <span class="stack-chip">TypeScript</span>
+        <span class="stack-chip">Prisma</span>
+        <span class="stack-chip">PostgreSQL</span>
+        <span class="stack-chip">Firebase Admin</span>
+        <span class="stack-chip">JWT</span>
+        <span class="stack-chip">Zod</span>
+        <span class="stack-chip">Vercel</span>
+      </div>
+    </div>
+
+    <div class="resources">
+      <a class="resource-link" href="https://backend-mini-social-app.vercel.app/postman.json">
+        <div class="label">Postman Collection</div>
+        <div class="value">/postman.json →</div>
+      </a>
+    </div>
+
+    <div class="section-label">Endpoints</div>
+
+    <div class="group">
+      <div class="group-title">Auth</div>
+      <div class="endpoint">
+        <span class="method POST">POST</span>
+        <span class="path">/api/auth/signup</span>
+      </div>
+      <div class="endpoint">
+        <span class="method POST">POST</span>
+        <span class="path">/api/auth/login</span>
+      </div>
+      <div class="endpoint">
+        <span class="method POST">POST</span>
+        <span class="path">/api/auth/refresh-token</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">User</div>
+      <div class="endpoint">
+        <span class="method POST">POST</span>
+        <span class="path">/api/users/register</span>
+      </div>
+      <div class="endpoint">
+        <span class="method PATCH">PATCH</span>
+        <span class="path">/api/users/device/update-fcm-token</span>
+        <span class="auth-tag">auth required</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Post</div>
+      <div class="endpoint">
+        <span class="method POST">POST</span>
+        <span class="path">/api/posts</span>
+        <span class="auth-tag">auth required</span>
+      </div>
+      <div class="endpoint">
+        <span class="method GET">GET</span>
+        <span class="path">/api/posts</span>
+      </div>
+      <div class="endpoint">
+        <span class="method GET">GET</span>
+        <span class="path">/api/posts/stats</span>
+        <span class="admin-tag">ADMIN only</span>
+      </div>
+      <div class="endpoint">
+        <span class="method GET">GET</span>
+        <span class="path">/api/posts/my-posts</span>
+        <span class="auth-tag">auth required</span>
+      </div>
+      <div class="endpoint">
+        <span class="method GET">GET</span>
+        <span class="path">/api/posts/:postId</span>
+      </div>
+      <div class="endpoint">
+        <span class="method PATCH">PATCH</span>
+        <span class="path">/api/posts/:postId</span>
+        <span class="auth-tag">auth required</span>
+      </div>
+      <div class="endpoint">
+        <span class="method DELETE">DELETE</span>
+        <span class="path">/api/posts/:postId</span>
+        <span class="auth-tag">auth required</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Comment</div>
+      <div class="endpoint">
+        <span class="method POST">POST</span>
+        <span class="path">/api/comments</span>
+        <span class="auth-tag">auth required</span>
+      </div>
+      <div class="endpoint">
+        <span class="method GET">GET</span>
+        <span class="path">/api/comments/:postId</span>
+        <span class="auth-tag">auth required</span>
+      </div>
+      <div class="endpoint">
+        <span class="method DELETE">DELETE</span>
+        <span class="path">/api/comments/:commentId</span>
+        <span class="auth-tag">auth required</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Like</div>
+      <div class="endpoint">
+        <span class="method POST">POST</span>
+        <span class="path">/api/likes</span>
+        <span class="auth-tag">auth required</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Notification</div>
+      <div class="endpoint">
+        <span class="method GET">GET</span>
+        <span class="path">/api/notifications</span>
+        <span class="auth-tag">auth required</span>
+      </div>
+      <div class="endpoint">
+        <span class="method PATCH">PATCH</span>
+        <span class="path">/api/notifications/:notificationId/read</span>
+        <span class="auth-tag">auth required</span>
+      </div>
+      <div class="endpoint">
+        <span class="method PATCH">PATCH</span>
+        <span class="path">/api/notifications/read-all</span>
+        <span class="auth-tag">auth required</span>
+      </div>
+    </div>
+
+    <footer>
+      <div class="footer-label">Designed & Built By</div>
+      <div class="dev-name">Tanjimul Islam Sabbir</div>
+      <div class="dev-role">Full-Stack Software Engineer · Node.js · React · React Native</div>
+      <div class="dev-links">
+        <a href="https://www.linkedin.com/in/TanjimulSabbir/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        <a href="https://github.com/TanjimulSabbir/" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://www.facebook.com/tanjimulsabbir.devel" target="_blank" rel="noopener noreferrer">Facebook</a>
+        <a href="mailto:tanjimulsabbir.dev@gmail.com">Email</a>
+      </div>
+      <div class="footer-tag">Clarity over certainty. Depth over noise. Understanding over assumption.</div>
+    </footer>
+  </div>
+</body>
+</html>

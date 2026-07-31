@@ -1,0 +1,12 @@
+node_modules
+dist
+generated
+.env
+/generated/prisma
+src/config/firebase-admin.json
+.vercel
+/src/modules
+prisma
+generated
+app.ts
+src
