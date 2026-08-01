@@ -85,20 +85,4 @@ export const gearServices = {
 
     return result;
   },
-
-  async createGearItem(
-    providerId: string,
-    payload: Prisma.GearItemUncheckedCreateInput,
-  ) {
-    const category = await prisma.category.findUnique({
-      where: { id: payload.categoryId },
-    });
-    if (!category) {
-      throw new AppError(httpStatus.BAD_REQUEST, "Category not found.");
-    }
-
-    return prisma.gearItem.create({
-      data: { ...payload, providerId },
-    });
-  },
 };

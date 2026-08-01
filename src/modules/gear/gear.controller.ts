@@ -1,27 +1,15 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { catchAsync } from "../../utils/catchAsync";
 
 import { sendResponse } from "../../utils/sendResponse";
 import { gearServices } from "./gear.service";
+import { TGetAllGearQuery } from "./gear.validation";
 
 
 export const gearController = {
-  createGearItem: catchAsync(
-    async (req: Request, res: Response, _next: NextFunction) => {
-      const data = await gearServices.createGearItem(req.user?.id  as string, req.body);
-
-      sendResponse(res, {
-        success: true,
-        statusCode: httpStatus.OK,
-        message: "Gear items created successfully",
-        data,
-      });
-    },
-  ),
-
   getAllGear: catchAsync(async (req: Request, res: Response) => {
-    const data = await gearServices.getAllGear(req.query);
+    const data = await gearServices.getAllGear(req.query as unknown as TGetAllGearQuery);
     sendResponse(res, {
       success: true,
       statusCode: httpStatus.OK,
@@ -40,23 +28,5 @@ export const gearController = {
     });
   }),
 
-  updateGear: catchAsync(async (req: Request, res: Response) => {
-    const data = await gearServices.updateGear(req.params.id, req.body);
-    sendResponse(res, {
-      success: true,
-      statusCode: httpStatus.OK,
-      message: "Gear item updated successfully",
-      data,
-    });
-  }),
 
-  deleteGear: catchAsync(async (req: Request, res: Response) => {
-    const data = await gearServices.deleteGear(req.params.id);
-    sendResponse(res, {
-      success: true,
-      statusCode: httpStatus.OK,
-      message: "Gear item deleted successfully",
-      data,
-    });
-  }),
 };
