@@ -51,6 +51,10 @@ const refreshToken = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const refreshToken = req.cookies.refreshToken;
 
+    if (!refreshToken) {
+      throw new AppError(httpStatus.UNAUTHORIZED, "Refresh token not found");
+    }
+
     const { accessToken } = await authService.refreshToken(refreshToken);
 
     res.cookie("accessToken", accessToken, {
@@ -71,23 +75,7 @@ const refreshToken = catchAsync(
   },
 );
 
-const signupUser = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const payload = req.body;
-
-    const { user } = await authService.signupUser(payload);
-
-    sendResponse(res, {
-      success: true,
-      statusCode: httpStatus.CREATED,
-      message: "User created successfully",
-      data: user,
-    });
-  },
-);
-
 export const authController = {
-  signupUser,
   loginUser,
   refreshToken,
 };

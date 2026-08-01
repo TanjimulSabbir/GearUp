@@ -1,14 +1,14 @@
 model RentalItem {
-  id              String @id @default(uuid())
+  id String @id @default(uuid())
 
-  rentalOrderId   String
-  gearItemId      String
+  rentalOrderId String
+  gearItemId    String
 
-  quantity        Int
+  quantity Int
 
-  rentalOrder     RentalOrder @relation(fields:[rentalOrderId], references:[id])
+  rentalOrder RentalOrder @relation(fields: [rentalOrderId], references: [id])
 
-  gearItem        GearItem @relation(fields:[gearItemId], references:[id])
+  gearItem GearItem @relation(fields: [gearItemId], references: [id])
 
-    @@map("Rental_Items")
+  @@map("Rental_Items")
 }

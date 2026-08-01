@@ -6,7 +6,7 @@ import { adminService } from "./admin.service";
 import { categoryService } from "../category/category.service";
 
 export const adminController = {
-  getAllUsers: catchAsync(async (_req: Request, res: Response) => {
+  getAllUsers: catchAsync(async (req: Request, res: Response) => {
     const users = await adminService.getAllUsers();
     sendResponse(res, {
       success: true,
@@ -39,8 +39,8 @@ export const adminController = {
     });
   }),
 
-  getAllRentals: catchAsync(async (_req: Request, res: Response) => {
-    const rentals = await adminService.getAllRentals();
+  getAllRentals: catchAsync(async (req: Request, res: Response) => {
+    const rentals = await adminService.getAllRentals(req.query);
     sendResponse(res, {
       success: true,
       statusCode: httpStatus.OK,
@@ -60,7 +60,10 @@ export const adminController = {
   }),
 
   updateCategory: catchAsync(async (req: Request, res: Response) => {
-    const category = await categoryService.update(req.params.id, req.body);
+    const category = await categoryService.update(
+      req.params.id as string,
+      req.body,
+    );
     sendResponse(res, {
       success: true,
       statusCode: httpStatus.OK,
@@ -70,7 +73,7 @@ export const adminController = {
   }),
 
   deleteCategory: catchAsync(async (req: Request, res: Response) => {
-    await categoryService.remove(req.params.id);
+    await categoryService.remove(req.params.id as string);
     sendResponse(res, {
       success: true,
       statusCode: httpStatus.OK,

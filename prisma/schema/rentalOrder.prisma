@@ -2,6 +2,7 @@ model RentalOrder {
     id String @id @default(uuid())
 
     customerId String
+    customer   User   @relation(fields: [customerId], references: [id])
 
     startDate DateTime
     endDate   DateTime
@@ -10,11 +11,9 @@ model RentalOrder {
 
     status RentalStatus @default(PLACED)
 
-    customer User @relation(fields: [customerId], references: [id])
-
     rentalItems RentalItem[]
 
-    payment Payment?
+    payments Payment?
 
     createdAt DateTime @default(now())
 

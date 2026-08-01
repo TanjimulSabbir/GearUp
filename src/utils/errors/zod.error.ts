@@ -18,7 +18,7 @@ export const validate =
 
     if (!result.success) {
       return next(
-        new AppError(400, "Validation Error", {
+        new AppError(httpStatus.BAD_REQUEST, "Data Validation Error", {
           issues: result.error.issues.map((issue) => ({
             field: issue.path.join("."),
             message: issue.message,
@@ -51,7 +51,7 @@ export const handleZodError = (err: ZodError): TGenericErrorResponse => {
 
   return {
     statusCode: httpStatus.BAD_REQUEST,
-    message: "Validation error",
+    message: " Data Validation Error",
     errorName: "ZodValidationError",
     errorInfo: { issues },
   };

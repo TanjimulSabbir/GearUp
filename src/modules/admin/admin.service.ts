@@ -80,16 +80,43 @@ export const adminService = {
     };
   },
 
-  async getAllRentals() {
-    return prisma.rentalOrder.findMany({
-      include: {
-        customer: { select: { id: true, name: true, email: true } },
-        items: { include: { gearItem: { select: { id: true, name: true } } } },
-        payments: {
-          select: { id: true, status: true, amount: true, method: true },
+  async getAllRentals(query?: any) {
+    const limit = Number(query.limit ?? 10);
+    const page = Number(query.page ?? 1);
+    const skip = (page - 1) * limit;
+    const sortBy = query.sortBy ?? "createdAt";
+    const sortOrder = query.sortOrder ?? "desc";
+
+    const [rentals, totalRentals] = await Promise.all([
+      prisma.rentalOrder.findMany({
+        skip,
+        take: limit,
+        include: {
+          customer: { select: { id: true, name: true, email: true } },
+          items: {
+            include: { gearItem: { select: { id: true, name: true } } },
+          },
+          payments: {
+            select: { id: true, status: true, amount: true, method: true },
+          },
         },
+
+        orderBy: {
+          [sortBy]: sortOrder,
+        },
+      }),
+
+      prisma.rentalOrder.count(),
+    ]);
+
+    return {
+      rentals,
+      meta: {
+        page,
+        limit,
+        total: totalRentals,
+        totalPages: Math.ceil(totalRentals / limit),
       },
-      orderBy: { createdAt: "desc" },
-    });
+    };
   },
 };
