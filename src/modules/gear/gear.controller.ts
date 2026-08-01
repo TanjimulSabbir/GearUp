@@ -5,10 +5,11 @@ import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { gearServices } from "./gear.service";
 
+
 export const gearController = {
   createGearItem: catchAsync(
     async (req: Request, res: Response, _next: NextFunction) => {
-      const data = await gearServices.createGearItem(req.user, req.body);
+      const data = await gearServices.createGearItem(req.user?.id  as string, req.body);
 
       sendResponse(res, {
         success: true,
