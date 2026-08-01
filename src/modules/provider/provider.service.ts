@@ -1,10 +1,11 @@
 import { Prisma } from "../../../generated/prisma/client";
+import { RentalStatus } from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
 import AppError from "../../utils/errors/app.error";
 import httpStatus from "http-status";
 
 // Valid provider-driven status transitions.
-const ALLOWED_TRANSITIONS: Record<string, []> = {
+const ALLOWED_TRANSITIONS: Record<RentalStatus, RentalStatus[]> = {
   PLACED: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["CANCELLED"],
   PAID: ["PICKED_UP"],
@@ -83,7 +84,7 @@ export const providerServices = {
       throw new AppError(httpStatus.FORBIDDEN, "You do not own this gear item");
     }
 
-    const activeOrders = await prisma.rentalOrderItem.count({
+    const activeOrders = await prisma.rentalItem.count({
       where: {
         gearItemId: gearId,
         rentalOrder: {
@@ -92,10 +93,9 @@ export const providerServices = {
       },
     });
     if (activeOrders > 0) {
-      // Soft-delete instead of hard-delete so active rentals stay intact.
       return prisma.gearItem.update({
         where: { id: gearId },
-        data: { isActive: false },
+        data: { isAvailable: false },
       });
     }
 
@@ -103,18 +103,17 @@ export const providerServices = {
     return null;
   },
 
-  // ---------- Orders ----------
   async getMyOrders(providerId: string) {
     return prisma.rentalOrder.findMany({
-      where: { items: { some: { gearItem: { providerId } } } },
+      where: { rentalItems: { some: { gearItem: { providerId } } } },
       include: {
         customer: {
           select: { id: true, name: true, email: true, phone: true },
         },
-        items: {
+        rentalItems: {
           where: { gearItem: { providerId } },
           include: {
-            gearItem: { select: { id: true, name: true, images: true } },
+            gearItem: { select: { id: true, name: true, image: true } },
           },
         },
         payments: true,
@@ -130,33 +129,31 @@ export const providerServices = {
   ) {
     const order = await prisma.rentalOrder.findUnique({
       where: { id: orderId },
-      include: { items: true },
+      include: { rentalItems: true },
     });
-    if (!order) throw AppError.notFound("Rental order not found");
+    if (!order) throw new AppError(httpStatus.NOT_FOUND, "Order not found");
 
-    const ownsItem = order.items.some((item) => item.gearItemId); // ownership re-checked below
-    const providerItems = await prisma.rentalOrderItem.findMany({
+    const providerItems = await prisma.rentalItem.findMany({
       where: { rentalOrderId: orderId, gearItem: { providerId } },
     });
     if (providerItems.length === 0) {
-      throw AppError.forbidden("You do not have any gear in this order");
-    }
-    void ownsItem;
-
-    const allowed = ALLOWED_TRANSITIONS[order.status] ?? [];
-    if (!allowed.includes(nextStatus)) {
-      throw AppError.badRequest(
-        `Cannot transition order from ${order.status} to ${nextStatus}`,
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You do not have any gear in this order",
       );
     }
 
-    // Restock gear when an order is cancelled or returned.
+    const allowed = ALLOWED_TRANSITIONS[order.status] ?? [];
+    if (!allowed.includes(nextStatus)) {
+      throw new AppError(httpStatus.FORBIDDEN, "You do not own this gear item");
+    }
+
     if (nextStatus === "CANCELLED" || nextStatus === "RETURNED") {
       await prisma.$transaction(
-        order.items.map((item) =>
+        order.rentalItems.map((item) =>
           prisma.gearItem.update({
             where: { id: item.gearItemId },
-            data: { availableStock: { increment: item.quantity } },
+            data: { stock: { increment: item.quantity } },
           }),
         ),
       );
@@ -165,7 +162,10 @@ export const providerServices = {
     return prisma.rentalOrder.update({
       where: { id: orderId },
       data: { status: nextStatus },
-      include: { items: true, customer: { select: { id: true, name: true } } },
+      include: {
+        rentalItems: true,
+        customer: { select: { id: true, name: true } },
+      },
     });
   },
 };

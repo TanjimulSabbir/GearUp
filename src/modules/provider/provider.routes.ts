@@ -1,17 +1,16 @@
 import { Router } from "express";
-import { authenticate, restrictTo } from "../../middleware/auth";
-import { validate } from "../../middleware/validate";
-import { updateGearSchema } from "../gear/gear.validation";
 import { providerController } from "./provider.controller";
 import {
   createGearItemSchema,
+  updateGearItemSchema,
   updateOrderStatusSchema,
 } from "./provider.validation";
 import { auth } from "../../middlewares/auth";
+import { validate } from "../../utils/errors/zod.error";
 
 const router = Router();
 
-router.use(authenticate, restrictTo("PROVIDER"));
+router.use(auth("PROVIDER"));
 router.post(
   "/gear",
   auth("PROVIDER"),
@@ -20,9 +19,10 @@ router.post(
 );
 
 router.get("/gear", providerController.getMyGear);
+
 router.put(
   "/gear/:id",
-  validate(updateGearSchema),
+  validate(updateGearItemSchema),
   providerController.updateGear,
 );
 router.delete("/gear/:id", providerController.removeGear);

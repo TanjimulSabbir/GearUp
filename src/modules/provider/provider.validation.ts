@@ -51,6 +51,8 @@ export const createGearItemSchema = z.object({
 export type CreateGearItemSchemaType = z.infer<
   typeof createGearItemSchema
 >["body"];
+
+
 export const updateGearItemSchema = z.object({
   params: z.object({ id: z.uuid("Invalid gear id") }),
   body: z
