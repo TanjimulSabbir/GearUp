@@ -9,7 +9,7 @@ import { sendResponse } from "../../utils/sendResponse";
 import { authService } from "./auth.service";
 
 const loginUser = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, _next: NextFunction) => {
     const payload = req.body;
 
     const user = await prisma.user.findUnique({
@@ -48,7 +48,7 @@ const loginUser = catchAsync(
 );
 
 const refreshToken = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, _next: NextFunction) => {
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {

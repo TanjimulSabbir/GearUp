@@ -1,51 +1,11 @@
 import bcrypt from "bcryptjs";
+import httpStatus from "http-status";
 import { JwtPayload, SignOptions } from "jsonwebtoken";
 import config from "../../config/index";
 import { prisma } from "../../lib/prisma";
-import { jwtUtils } from "../../utils/jwt";
-import { ILoginUser, ISignupUser } from "./auth.interface";
 import AppError from "../../utils/errors/app.error";
-import httpStatus from "http-status";
-
-const signupUser = async (payload: ISignupUser) => {
-  const { name, email, password } = payload;
-
-  const existingUser = await prisma.user.findUnique({
-    where: {
-      email,
-    },
-  });
-
-  if (existingUser) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      "User already exists with this email",
-      { email },
-    );
-  }
-
-  const hashedPassword = await bcrypt.hash(
-    password,
-    Number(config.bcrypt_salt_rounds),
-  );
-
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email,
-      password: hashedPassword,
-    },
-  });
-
-  const userCreateData = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-  };
-
-  return { user: userCreateData };
-};
+import { jwtUtils } from "../../utils/jwt";
+import { ILoginUser } from "./auth.interface";
 
 const loginUser = async (payload: ILoginUser) => {
   const { email, password } = payload;
@@ -63,20 +23,18 @@ const loginUser = async (payload: ILoginUser) => {
     throw new AppError(httpStatus.BAD_REQUEST, "Invalid email or password");
   }
 
-  if (user.activeStatus === "BLOCKED") {
+  if (user.accountStatus === "BANNED") {
     throw new AppError(
       httpStatus.FORBIDDEN,
-      "Your account has been blocked. Please contact support.",
-      { email },
+      "Your account has been banned. Please contact support. Support email: support@gearup.com",
     );
   }
-
+  
   const jwtPayload = {
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
-    fcmToken: user.fcmToken,
   };
 
   const accessToken = jwtUtils.createToken(
@@ -113,18 +71,19 @@ const refreshToken = async (refreshToken: string) => {
       id,
     },
   });
-  if (user.activeStatus === "BLOCKED") {
+
+  if (user.accountStatus === "BANNED") {
     throw new AppError(
       httpStatus.FORBIDDEN,
-      "Your account has been blocked. Please contact support.",
+      "Your account has been banned. Please contact support. Support email: support@gearup.com",
     );
   }
+
   const jwtPayload = {
     id,
     name: user.name,
     email: user.email,
     role: user.role,
-    fcmToken: user.fcmToken,
   };
 
   const accessToken = jwtUtils.createToken(
@@ -137,7 +96,6 @@ const refreshToken = async (refreshToken: string) => {
 };
 
 export const authService = {
-  signupUser,
   loginUser,
   refreshToken,
 };
