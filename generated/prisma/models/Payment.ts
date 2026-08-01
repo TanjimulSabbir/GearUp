@@ -321,7 +321,7 @@ export type PaymentCreateInput = {
   paidAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
-  rentalOrder: Prisma.RentalOrderCreateNestedOneWithoutPaymentInput
+  rentalOrder: Prisma.RentalOrderCreateNestedOneWithoutPaymentsInput
 }
 
 export type PaymentUncheckedCreateInput = {
@@ -345,7 +345,7 @@ export type PaymentUpdateInput = {
   paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  rentalOrder?: Prisma.RentalOrderUpdateOneRequiredWithoutPaymentNestedInput
+  rentalOrder?: Prisma.RentalOrderUpdateOneRequiredWithoutPaymentsNestedInput
 }
 
 export type PaymentUncheckedUpdateInput = {

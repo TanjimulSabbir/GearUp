@@ -1,10 +1,11 @@
-import { prisma } from "../../config/prisma";
-import { AppError } from "../../utils/AppError";
+import httpStatus from "http-status";
+import { prisma } from "../../lib/prisma";
+import AppError from "../../utils/errors/app.error";
+
 
 interface CreateRentalInput {
   startDate: Date;
   endDate: Date;
-  notes?: string;
   items: { gearItemId: string; quantity: number }[];
 }
 
@@ -19,59 +20,54 @@ export const rentalService = {
 
     return prisma.$transaction(async (tx) => {
       let totalAmount = 0;
-      const orderItemsData: {
-        gearItemId: string;
-        quantity: number;
-        pricePerDay: number;
-        days: number;
-        subtotal: number;
-      }[] = [];
+      const rentalItemsData: { gearItemId: string; quantity: number }[] = [];
 
       for (const item of input.items) {
         const gear = await tx.gearItem.findFirst({
-          where: { id: item.gearItemId, isActive: true },
+          where: { id: item.gearItemId, isAvailable: true },
         });
+
         if (!gear) {
-          throw AppError.notFound(`Gear item ${item.gearItemId} not found or unavailable`);
+          throw new AppError(
+            httpStatus.NOT_FOUND,
+            `Gear item ${item.gearItemId} not found or unavailable.`,
+          );
         }
-        if (gear.availableStock < item.quantity) {
-          throw AppError.conflict(
-            `Insufficient stock for "${gear.name}". Available: ${gear.availableStock}`
+        
+        if (gear.stock < item.quantity) {
+          throw new AppError(
+            httpStatus.CONFLICT,
+            `Insufficient stock for "${gear.name}". Available: ${gear.stock}`,
           );
         }
 
-        const subtotal = gear.pricePerDay * item.quantity * days;
-        totalAmount += subtotal;
+        totalAmount += gear.rentalPrice * item.quantity * days;
 
-        orderItemsData.push({
+        rentalItemsData.push({
           gearItemId: gear.id,
           quantity: item.quantity,
-          pricePerDay: gear.pricePerDay,
-          days,
-          subtotal,
         });
 
         await tx.gearItem.update({
           where: { id: gear.id },
-          data: { availableStock: { decrement: item.quantity } },
+          data: { stock: { decrement: item.quantity } },
         });
       }
 
-      const order = await tx.rentalOrder.create({
+      return tx.rentalOrder.create({
         data: {
           customerId,
           startDate: input.startDate,
           endDate: input.endDate,
-          notes: input.notes,
           totalAmount,
-          items: { create: orderItemsData },
+          rentalItems: { create: rentalItemsData },
         },
         include: {
-          items: { include: { gearItem: { select: { id: true, name: true, images: true } } } },
+          rentalItems: {
+            include: { gearItem: { select: { id: true, name: true, image: true } } },
+          },
         },
       });
-
-      return order;
     });
   },
 
@@ -79,32 +75,41 @@ export const rentalService = {
     return prisma.rentalOrder.findMany({
       where: { customerId },
       include: {
-        items: { include: { gearItem: { select: { id: true, name: true, images: true } } } },
-        payments: { select: { id: true, status: true, amount: true, method: true, paidAt: true } },
+        rentalItems: {
+          include: { gearItem: { select: { id: true, name: true, image: true } } },
+        },
+        payments: {
+          select: { id: true, status: true, amount: true, method: true, paidAt: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
   },
 
-  async getById(customerId: string, role: string, orderId: string) {
+  async getById(requesterId: string, role: string, orderId: string) {
     const order = await prisma.rentalOrder.findUnique({
       where: { id: orderId },
       include: {
-        items: { include: { gearItem: true } },
+        rentalItems: { include: { gearItem: true } },
         payments: true,
         customer: { select: { id: true, name: true, email: true } },
       },
     });
-    if (!order) throw AppError.notFound("Rental order not found");
+    if (!order) {
+      throw new AppError(httpStatus.NOT_FOUND, "Rental order not found.");
+    }
 
-    const isOwner = order.customerId === customerId;
+    const isOwner = order.customerId === requesterId;
     const isAdmin = role === "ADMIN";
-    const isProviderOfItem = order.items.some(
-      (i) => "providerId" in i.gearItem && (i.gearItem as any).providerId === customerId
+    const isProviderOfItem = order.rentalItems.some(
+      (item) => item.gearItem.providerId === requesterId,
     );
 
     if (!isOwner && !isAdmin && !isProviderOfItem) {
-      throw AppError.forbidden("You do not have access to this rental order");
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You do not have access to this rental order.",
+      );
     }
 
     return order;
@@ -113,24 +118,32 @@ export const rentalService = {
   async cancel(customerId: string, orderId: string) {
     const order = await prisma.rentalOrder.findUnique({
       where: { id: orderId },
-      include: { items: true },
+      include: { rentalItems: true },
     });
-    if (!order) throw AppError.notFound("Rental order not found");
+    if (!order) {
+      throw new AppError(httpStatus.NOT_FOUND, "Rental order not found.");
+    }
     if (order.customerId !== customerId) {
-      throw AppError.forbidden("You can only cancel your own orders");
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You can only cancel your own orders.",
+      );
     }
     if (!["PLACED", "CONFIRMED"].includes(order.status)) {
-      throw AppError.badRequest(`Order in status ${order.status} cannot be cancelled`);
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Order in status ${order.status} cannot be cancelled.`,
+      );
     }
 
     return prisma.$transaction(async (tx) => {
       await Promise.all(
-        order.items.map((item) =>
+        order.rentalItems.map((item) =>
           tx.gearItem.update({
             where: { id: item.gearItemId },
-            data: { availableStock: { increment: item.quantity } },
-          })
-        )
+            data: { stock: { increment: item.quantity } },
+          }),
+        ),
       );
 
       return tx.rentalOrder.update({
