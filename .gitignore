@@ -8,5 +8,3 @@ src/config/firebase-admin.json
 prisma
 generated
 /src/modules
-
-README.md
