@@ -6,6 +6,12 @@ import config from "./config";
 import { globalErrorHandler } from "./middlewares/globalErrorHandler";
 import { notFound } from "./middlewares/notFound";
 import { authRoutes } from "./modules/auth/auth.routes";
+import { userRoutes } from "./modules/user/user.routes";
+import { adminRoutes } from "./modules/admin/admin.routes";
+import { categoryRoutes } from "./modules/category/category.routes";
+import { gearRoutes } from "./modules/gear/gear.routes";
+import { providerRoutes } from "./modules/provider/provider.routes";
+import { rentalRoutes } from "./modules/rental/rental.routes";
 
 const app: Application = express();
 
@@ -28,7 +34,14 @@ app.get("/postman.json", (req: Request, res: Response) => {
   res.sendFile(path.join(process.cwd(), "post-man-v2.json"));
 });
 
-app.use("/api/auth", authRoutes);
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/categories", categoryRoutes);
+app.use("/api/v1/gear", gearRoutes);
+app.use("/api/v1/provider", providerRoutes);
+app.use("/api/v1/rentals", rentalRoutes);
+ 
 
 app.use(notFound);
 

@@ -22,9 +22,17 @@ export const createRentalSchema = z.object({
 });
 
 export const rentalIdParamSchema = z.object({
-  params: z.object({
-    id: z.uuid("Invalid rental order id"),
-  }),
+  params: z
+    .object({
+      id: z
+        .string({
+          error: "Rental order id is required",
+        })
+        .trim()
+        .min(1, "Rental order id cannot be empty")
+        .uuid("Invalid rental order id format"),
+    })
+    .strict(),
 });
 
 // NOTE: this looks like it belongs in a review module, not rental.
