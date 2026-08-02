@@ -4,6 +4,8 @@ model RentalOrder {
     customerId String
     customer   User   @relation(fields: [customerId], references: [id])
 
+    
+
     startDate DateTime
     endDate   DateTime
 
@@ -12,6 +14,7 @@ model RentalOrder {
     status RentalStatus @default(PLACED)
 
     rentalItems RentalItem[]
+     reviews     Review[]
 
     payments Payment?
 

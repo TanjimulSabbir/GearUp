@@ -40,6 +40,7 @@ export type ReviewMinAggregateOutputType = {
   comment: string | null
   userId: string | null
   gearItemId: string | null
+  rentalOrderId: string | null
   createdAt: Date | null
 }
 
@@ -49,6 +50,7 @@ export type ReviewMaxAggregateOutputType = {
   comment: string | null
   userId: string | null
   gearItemId: string | null
+  rentalOrderId: string | null
   createdAt: Date | null
 }
 
@@ -58,6 +60,7 @@ export type ReviewCountAggregateOutputType = {
   comment: number
   userId: number
   gearItemId: number
+  rentalOrderId: number
   createdAt: number
   _all: number
 }
@@ -77,6 +80,7 @@ export type ReviewMinAggregateInputType = {
   comment?: true
   userId?: true
   gearItemId?: true
+  rentalOrderId?: true
   createdAt?: true
 }
 
@@ -86,6 +90,7 @@ export type ReviewMaxAggregateInputType = {
   comment?: true
   userId?: true
   gearItemId?: true
+  rentalOrderId?: true
   createdAt?: true
 }
 
@@ -95,6 +100,7 @@ export type ReviewCountAggregateInputType = {
   comment?: true
   userId?: true
   gearItemId?: true
+  rentalOrderId?: true
   createdAt?: true
   _all?: true
 }
@@ -191,6 +197,7 @@ export type ReviewGroupByOutputType = {
   comment: string
   userId: string
   gearItemId: string
+  rentalOrderId: string
   createdAt: Date
   _count: ReviewCountAggregateOutputType | null
   _avg: ReviewAvgAggregateOutputType | null
@@ -223,9 +230,11 @@ export type ReviewWhereInput = {
   comment?: Prisma.StringFilter<"Review"> | string
   userId?: Prisma.StringFilter<"Review"> | string
   gearItemId?: Prisma.StringFilter<"Review"> | string
+  rentalOrderId?: Prisma.StringFilter<"Review"> | string
   createdAt?: Prisma.DateTimeFilter<"Review"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   gearItem?: Prisma.XOR<Prisma.GearItemScalarRelationFilter, Prisma.GearItemWhereInput>
+  rentalOrder?: Prisma.XOR<Prisma.RentalOrderScalarRelationFilter, Prisma.RentalOrderWhereInput>
 }
 
 export type ReviewOrderByWithRelationInput = {
@@ -234,13 +243,16 @@ export type ReviewOrderByWithRelationInput = {
   comment?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   gearItemId?: Prisma.SortOrder
+  rentalOrderId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   gearItem?: Prisma.GearItemOrderByWithRelationInput
+  rentalOrder?: Prisma.RentalOrderOrderByWithRelationInput
 }
 
 export type ReviewWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  userId_gearItemId_rentalOrderId?: Prisma.ReviewUserIdGearItemIdRentalOrderIdCompoundUniqueInput
   AND?: Prisma.ReviewWhereInput | Prisma.ReviewWhereInput[]
   OR?: Prisma.ReviewWhereInput[]
   NOT?: Prisma.ReviewWhereInput | Prisma.ReviewWhereInput[]
@@ -248,10 +260,12 @@ export type ReviewWhereUniqueInput = Prisma.AtLeast<{
   comment?: Prisma.StringFilter<"Review"> | string
   userId?: Prisma.StringFilter<"Review"> | string
   gearItemId?: Prisma.StringFilter<"Review"> | string
+  rentalOrderId?: Prisma.StringFilter<"Review"> | string
   createdAt?: Prisma.DateTimeFilter<"Review"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   gearItem?: Prisma.XOR<Prisma.GearItemScalarRelationFilter, Prisma.GearItemWhereInput>
-}, "id">
+  rentalOrder?: Prisma.XOR<Prisma.RentalOrderScalarRelationFilter, Prisma.RentalOrderWhereInput>
+}, "id" | "userId_gearItemId_rentalOrderId">
 
 export type ReviewOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -259,6 +273,7 @@ export type ReviewOrderByWithAggregationInput = {
   comment?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   gearItemId?: Prisma.SortOrder
+  rentalOrderId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.ReviewCountOrderByAggregateInput
   _avg?: Prisma.ReviewAvgOrderByAggregateInput
@@ -276,6 +291,7 @@ export type ReviewScalarWhereWithAggregatesInput = {
   comment?: Prisma.StringWithAggregatesFilter<"Review"> | string
   userId?: Prisma.StringWithAggregatesFilter<"Review"> | string
   gearItemId?: Prisma.StringWithAggregatesFilter<"Review"> | string
+  rentalOrderId?: Prisma.StringWithAggregatesFilter<"Review"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Review"> | Date | string
 }
 
@@ -286,6 +302,7 @@ export type ReviewCreateInput = {
   createdAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutReviewsInput
   gearItem: Prisma.GearItemCreateNestedOneWithoutReviewsInput
+  rentalOrder: Prisma.RentalOrderCreateNestedOneWithoutReviewsInput
 }
 
 export type ReviewUncheckedCreateInput = {
@@ -294,6 +311,7 @@ export type ReviewUncheckedCreateInput = {
   comment: string
   userId: string
   gearItemId: string
+  rentalOrderId: string
   createdAt?: Date | string
 }
 
@@ -304,6 +322,7 @@ export type ReviewUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutReviewsNestedInput
   gearItem?: Prisma.GearItemUpdateOneRequiredWithoutReviewsNestedInput
+  rentalOrder?: Prisma.RentalOrderUpdateOneRequiredWithoutReviewsNestedInput
 }
 
 export type ReviewUncheckedUpdateInput = {
@@ -312,6 +331,7 @@ export type ReviewUncheckedUpdateInput = {
   comment?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   gearItemId?: Prisma.StringFieldUpdateOperationsInput | string
+  rentalOrderId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -321,6 +341,7 @@ export type ReviewCreateManyInput = {
   comment: string
   userId: string
   gearItemId: string
+  rentalOrderId: string
   createdAt?: Date | string
 }
 
@@ -337,6 +358,7 @@ export type ReviewUncheckedUpdateManyInput = {
   comment?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   gearItemId?: Prisma.StringFieldUpdateOperationsInput | string
+  rentalOrderId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -350,12 +372,19 @@ export type ReviewOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type ReviewUserIdGearItemIdRentalOrderIdCompoundUniqueInput = {
+  userId: string
+  gearItemId: string
+  rentalOrderId: string
+}
+
 export type ReviewCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   rating?: Prisma.SortOrder
   comment?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   gearItemId?: Prisma.SortOrder
+  rentalOrderId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -369,6 +398,7 @@ export type ReviewMaxOrderByAggregateInput = {
   comment?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   gearItemId?: Prisma.SortOrder
+  rentalOrderId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -378,6 +408,7 @@ export type ReviewMinOrderByAggregateInput = {
   comment?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   gearItemId?: Prisma.SortOrder
+  rentalOrderId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -424,6 +455,48 @@ export type ReviewUncheckedUpdateManyWithoutGearItemNestedInput = {
   connect?: Prisma.ReviewWhereUniqueInput | Prisma.ReviewWhereUniqueInput[]
   update?: Prisma.ReviewUpdateWithWhereUniqueWithoutGearItemInput | Prisma.ReviewUpdateWithWhereUniqueWithoutGearItemInput[]
   updateMany?: Prisma.ReviewUpdateManyWithWhereWithoutGearItemInput | Prisma.ReviewUpdateManyWithWhereWithoutGearItemInput[]
+  deleteMany?: Prisma.ReviewScalarWhereInput | Prisma.ReviewScalarWhereInput[]
+}
+
+export type ReviewCreateNestedManyWithoutRentalOrderInput = {
+  create?: Prisma.XOR<Prisma.ReviewCreateWithoutRentalOrderInput, Prisma.ReviewUncheckedCreateWithoutRentalOrderInput> | Prisma.ReviewCreateWithoutRentalOrderInput[] | Prisma.ReviewUncheckedCreateWithoutRentalOrderInput[]
+  connectOrCreate?: Prisma.ReviewCreateOrConnectWithoutRentalOrderInput | Prisma.ReviewCreateOrConnectWithoutRentalOrderInput[]
+  createMany?: Prisma.ReviewCreateManyRentalOrderInputEnvelope
+  connect?: Prisma.ReviewWhereUniqueInput | Prisma.ReviewWhereUniqueInput[]
+}
+
+export type ReviewUncheckedCreateNestedManyWithoutRentalOrderInput = {
+  create?: Prisma.XOR<Prisma.ReviewCreateWithoutRentalOrderInput, Prisma.ReviewUncheckedCreateWithoutRentalOrderInput> | Prisma.ReviewCreateWithoutRentalOrderInput[] | Prisma.ReviewUncheckedCreateWithoutRentalOrderInput[]
+  connectOrCreate?: Prisma.ReviewCreateOrConnectWithoutRentalOrderInput | Prisma.ReviewCreateOrConnectWithoutRentalOrderInput[]
+  createMany?: Prisma.ReviewCreateManyRentalOrderInputEnvelope
+  connect?: Prisma.ReviewWhereUniqueInput | Prisma.ReviewWhereUniqueInput[]
+}
+
+export type ReviewUpdateManyWithoutRentalOrderNestedInput = {
+  create?: Prisma.XOR<Prisma.ReviewCreateWithoutRentalOrderInput, Prisma.ReviewUncheckedCreateWithoutRentalOrderInput> | Prisma.ReviewCreateWithoutRentalOrderInput[] | Prisma.ReviewUncheckedCreateWithoutRentalOrderInput[]
+  connectOrCreate?: Prisma.ReviewCreateOrConnectWithoutRentalOrderInput | Prisma.ReviewCreateOrConnectWithoutRentalOrderInput[]
+  upsert?: Prisma.ReviewUpsertWithWhereUniqueWithoutRentalOrderInput | Prisma.ReviewUpsertWithWhereUniqueWithoutRentalOrderInput[]
+  createMany?: Prisma.ReviewCreateManyRentalOrderInputEnvelope
+  set?: Prisma.ReviewWhereUniqueInput | Prisma.ReviewWhereUniqueInput[]
+  disconnect?: Prisma.ReviewWhereUniqueInput | Prisma.ReviewWhereUniqueInput[]
+  delete?: Prisma.ReviewWhereUniqueInput | Prisma.ReviewWhereUniqueInput[]
+  connect?: Prisma.ReviewWhereUniqueInput | Prisma.ReviewWhereUniqueInput[]
+  update?: Prisma.ReviewUpdateWithWhereUniqueWithoutRentalOrderInput | Prisma.ReviewUpdateWithWhereUniqueWithoutRentalOrderInput[]
+  updateMany?: Prisma.ReviewUpdateManyWithWhereWithoutRentalOrderInput | Prisma.ReviewUpdateManyWithWhereWithoutRentalOrderInput[]
+  deleteMany?: Prisma.ReviewScalarWhereInput | Prisma.ReviewScalarWhereInput[]
+}
+
+export type ReviewUncheckedUpdateManyWithoutRentalOrderNestedInput = {
+  create?: Prisma.XOR<Prisma.ReviewCreateWithoutRentalOrderInput, Prisma.ReviewUncheckedCreateWithoutRentalOrderInput> | Prisma.ReviewCreateWithoutRentalOrderInput[] | Prisma.ReviewUncheckedCreateWithoutRentalOrderInput[]
+  connectOrCreate?: Prisma.ReviewCreateOrConnectWithoutRentalOrderInput | Prisma.ReviewCreateOrConnectWithoutRentalOrderInput[]
+  upsert?: Prisma.ReviewUpsertWithWhereUniqueWithoutRentalOrderInput | Prisma.ReviewUpsertWithWhereUniqueWithoutRentalOrderInput[]
+  createMany?: Prisma.ReviewCreateManyRentalOrderInputEnvelope
+  set?: Prisma.ReviewWhereUniqueInput | Prisma.ReviewWhereUniqueInput[]
+  disconnect?: Prisma.ReviewWhereUniqueInput | Prisma.ReviewWhereUniqueInput[]
+  delete?: Prisma.ReviewWhereUniqueInput | Prisma.ReviewWhereUniqueInput[]
+  connect?: Prisma.ReviewWhereUniqueInput | Prisma.ReviewWhereUniqueInput[]
+  update?: Prisma.ReviewUpdateWithWhereUniqueWithoutRentalOrderInput | Prisma.ReviewUpdateWithWhereUniqueWithoutRentalOrderInput[]
+  updateMany?: Prisma.ReviewUpdateManyWithWhereWithoutRentalOrderInput | Prisma.ReviewUpdateManyWithWhereWithoutRentalOrderInput[]
   deleteMany?: Prisma.ReviewScalarWhereInput | Prisma.ReviewScalarWhereInput[]
 }
 
@@ -475,6 +548,7 @@ export type ReviewCreateWithoutGearItemInput = {
   comment: string
   createdAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutReviewsInput
+  rentalOrder: Prisma.RentalOrderCreateNestedOneWithoutReviewsInput
 }
 
 export type ReviewUncheckedCreateWithoutGearItemInput = {
@@ -482,6 +556,7 @@ export type ReviewUncheckedCreateWithoutGearItemInput = {
   rating: number
   comment: string
   userId: string
+  rentalOrderId: string
   createdAt?: Date | string
 }
 
@@ -520,7 +595,52 @@ export type ReviewScalarWhereInput = {
   comment?: Prisma.StringFilter<"Review"> | string
   userId?: Prisma.StringFilter<"Review"> | string
   gearItemId?: Prisma.StringFilter<"Review"> | string
+  rentalOrderId?: Prisma.StringFilter<"Review"> | string
   createdAt?: Prisma.DateTimeFilter<"Review"> | Date | string
+}
+
+export type ReviewCreateWithoutRentalOrderInput = {
+  id?: string
+  rating: number
+  comment: string
+  createdAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutReviewsInput
+  gearItem: Prisma.GearItemCreateNestedOneWithoutReviewsInput
+}
+
+export type ReviewUncheckedCreateWithoutRentalOrderInput = {
+  id?: string
+  rating: number
+  comment: string
+  userId: string
+  gearItemId: string
+  createdAt?: Date | string
+}
+
+export type ReviewCreateOrConnectWithoutRentalOrderInput = {
+  where: Prisma.ReviewWhereUniqueInput
+  create: Prisma.XOR<Prisma.ReviewCreateWithoutRentalOrderInput, Prisma.ReviewUncheckedCreateWithoutRentalOrderInput>
+}
+
+export type ReviewCreateManyRentalOrderInputEnvelope = {
+  data: Prisma.ReviewCreateManyRentalOrderInput | Prisma.ReviewCreateManyRentalOrderInput[]
+  skipDuplicates?: boolean
+}
+
+export type ReviewUpsertWithWhereUniqueWithoutRentalOrderInput = {
+  where: Prisma.ReviewWhereUniqueInput
+  update: Prisma.XOR<Prisma.ReviewUpdateWithoutRentalOrderInput, Prisma.ReviewUncheckedUpdateWithoutRentalOrderInput>
+  create: Prisma.XOR<Prisma.ReviewCreateWithoutRentalOrderInput, Prisma.ReviewUncheckedCreateWithoutRentalOrderInput>
+}
+
+export type ReviewUpdateWithWhereUniqueWithoutRentalOrderInput = {
+  where: Prisma.ReviewWhereUniqueInput
+  data: Prisma.XOR<Prisma.ReviewUpdateWithoutRentalOrderInput, Prisma.ReviewUncheckedUpdateWithoutRentalOrderInput>
+}
+
+export type ReviewUpdateManyWithWhereWithoutRentalOrderInput = {
+  where: Prisma.ReviewScalarWhereInput
+  data: Prisma.XOR<Prisma.ReviewUpdateManyMutationInput, Prisma.ReviewUncheckedUpdateManyWithoutRentalOrderInput>
 }
 
 export type ReviewCreateWithoutUserInput = {
@@ -529,6 +649,7 @@ export type ReviewCreateWithoutUserInput = {
   comment: string
   createdAt?: Date | string
   gearItem: Prisma.GearItemCreateNestedOneWithoutReviewsInput
+  rentalOrder: Prisma.RentalOrderCreateNestedOneWithoutReviewsInput
 }
 
 export type ReviewUncheckedCreateWithoutUserInput = {
@@ -536,6 +657,7 @@ export type ReviewUncheckedCreateWithoutUserInput = {
   rating: number
   comment: string
   gearItemId: string
+  rentalOrderId: string
   createdAt?: Date | string
 }
 
@@ -570,6 +692,7 @@ export type ReviewCreateManyGearItemInput = {
   rating: number
   comment: string
   userId: string
+  rentalOrderId: string
   createdAt?: Date | string
 }
 
@@ -579,6 +702,7 @@ export type ReviewUpdateWithoutGearItemInput = {
   comment?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutReviewsNestedInput
+  rentalOrder?: Prisma.RentalOrderUpdateOneRequiredWithoutReviewsNestedInput
 }
 
 export type ReviewUncheckedUpdateWithoutGearItemInput = {
@@ -586,6 +710,7 @@ export type ReviewUncheckedUpdateWithoutGearItemInput = {
   rating?: Prisma.IntFieldUpdateOperationsInput | number
   comment?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
+  rentalOrderId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -594,6 +719,43 @@ export type ReviewUncheckedUpdateManyWithoutGearItemInput = {
   rating?: Prisma.IntFieldUpdateOperationsInput | number
   comment?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
+  rentalOrderId?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type ReviewCreateManyRentalOrderInput = {
+  id?: string
+  rating: number
+  comment: string
+  userId: string
+  gearItemId: string
+  createdAt?: Date | string
+}
+
+export type ReviewUpdateWithoutRentalOrderInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  rating?: Prisma.IntFieldUpdateOperationsInput | number
+  comment?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutReviewsNestedInput
+  gearItem?: Prisma.GearItemUpdateOneRequiredWithoutReviewsNestedInput
+}
+
+export type ReviewUncheckedUpdateWithoutRentalOrderInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  rating?: Prisma.IntFieldUpdateOperationsInput | number
+  comment?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  gearItemId?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type ReviewUncheckedUpdateManyWithoutRentalOrderInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  rating?: Prisma.IntFieldUpdateOperationsInput | number
+  comment?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  gearItemId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -602,6 +764,7 @@ export type ReviewCreateManyUserInput = {
   rating: number
   comment: string
   gearItemId: string
+  rentalOrderId: string
   createdAt?: Date | string
 }
 
@@ -611,6 +774,7 @@ export type ReviewUpdateWithoutUserInput = {
   comment?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   gearItem?: Prisma.GearItemUpdateOneRequiredWithoutReviewsNestedInput
+  rentalOrder?: Prisma.RentalOrderUpdateOneRequiredWithoutReviewsNestedInput
 }
 
 export type ReviewUncheckedUpdateWithoutUserInput = {
@@ -618,6 +782,7 @@ export type ReviewUncheckedUpdateWithoutUserInput = {
   rating?: Prisma.IntFieldUpdateOperationsInput | number
   comment?: Prisma.StringFieldUpdateOperationsInput | string
   gearItemId?: Prisma.StringFieldUpdateOperationsInput | string
+  rentalOrderId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -626,6 +791,7 @@ export type ReviewUncheckedUpdateManyWithoutUserInput = {
   rating?: Prisma.IntFieldUpdateOperationsInput | number
   comment?: Prisma.StringFieldUpdateOperationsInput | string
   gearItemId?: Prisma.StringFieldUpdateOperationsInput | string
+  rentalOrderId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -637,9 +803,11 @@ export type ReviewSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   comment?: boolean
   userId?: boolean
   gearItemId?: boolean
+  rentalOrderId?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   gearItem?: boolean | Prisma.GearItemDefaultArgs<ExtArgs>
+  rentalOrder?: boolean | Prisma.RentalOrderDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["review"]>
 
 export type ReviewSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -648,9 +816,11 @@ export type ReviewSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   comment?: boolean
   userId?: boolean
   gearItemId?: boolean
+  rentalOrderId?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   gearItem?: boolean | Prisma.GearItemDefaultArgs<ExtArgs>
+  rentalOrder?: boolean | Prisma.RentalOrderDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["review"]>
 
 export type ReviewSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -659,9 +829,11 @@ export type ReviewSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   comment?: boolean
   userId?: boolean
   gearItemId?: boolean
+  rentalOrderId?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   gearItem?: boolean | Prisma.GearItemDefaultArgs<ExtArgs>
+  rentalOrder?: boolean | Prisma.RentalOrderDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["review"]>
 
 export type ReviewSelectScalar = {
@@ -670,21 +842,25 @@ export type ReviewSelectScalar = {
   comment?: boolean
   userId?: boolean
   gearItemId?: boolean
+  rentalOrderId?: boolean
   createdAt?: boolean
 }
 
-export type ReviewOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "rating" | "comment" | "userId" | "gearItemId" | "createdAt", ExtArgs["result"]["review"]>
+export type ReviewOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "rating" | "comment" | "userId" | "gearItemId" | "rentalOrderId" | "createdAt", ExtArgs["result"]["review"]>
 export type ReviewInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   gearItem?: boolean | Prisma.GearItemDefaultArgs<ExtArgs>
+  rentalOrder?: boolean | Prisma.RentalOrderDefaultArgs<ExtArgs>
 }
 export type ReviewIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   gearItem?: boolean | Prisma.GearItemDefaultArgs<ExtArgs>
+  rentalOrder?: boolean | Prisma.RentalOrderDefaultArgs<ExtArgs>
 }
 export type ReviewIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   gearItem?: boolean | Prisma.GearItemDefaultArgs<ExtArgs>
+  rentalOrder?: boolean | Prisma.RentalOrderDefaultArgs<ExtArgs>
 }
 
 export type $ReviewPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -692,6 +868,7 @@ export type $ReviewPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
   objects: {
     user: Prisma.$UserPayload<ExtArgs>
     gearItem: Prisma.$GearItemPayload<ExtArgs>
+    rentalOrder: Prisma.$RentalOrderPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -699,6 +876,7 @@ export type $ReviewPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     comment: string
     userId: string
     gearItemId: string
+    rentalOrderId: string
     createdAt: Date
   }, ExtArgs["result"]["review"]>
   composites: {}
@@ -1096,6 +1274,7 @@ export interface Prisma__ReviewClient<T, Null = never, ExtArgs extends runtime.T
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   gearItem<T extends Prisma.GearItemDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.GearItemDefaultArgs<ExtArgs>>): Prisma.Prisma__GearItemClient<runtime.Types.Result.GetResult<Prisma.$GearItemPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  rentalOrder<T extends Prisma.RentalOrderDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.RentalOrderDefaultArgs<ExtArgs>>): Prisma.Prisma__RentalOrderClient<runtime.Types.Result.GetResult<Prisma.$RentalOrderPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1130,6 +1309,7 @@ export interface ReviewFieldRefs {
   readonly comment: Prisma.FieldRef<"Review", 'String'>
   readonly userId: Prisma.FieldRef<"Review", 'String'>
   readonly gearItemId: Prisma.FieldRef<"Review", 'String'>
+  readonly rentalOrderId: Prisma.FieldRef<"Review", 'String'>
   readonly createdAt: Prisma.FieldRef<"Review", 'DateTime'>
 }
     
