@@ -1,22 +1,21 @@
 import crypto from "crypto";
-import { prisma } from "../../config/prisma";
-import { stripe } from "../../config/stripe";
-import { AppError } from "../../utils/AppError";
-import { env } from "../../config/env";
+import { prisma } from "../../lib/prisma";
+import AppError from "../../utils/errors/app.error";
+
 
 export const paymentService = {
   async createCheckoutSession(customerId: string, rentalOrderId: string) {
     const order = await prisma.rentalOrder.findUnique({
       where: { id: rentalOrderId },
-      include: { items: { include: { gearItem: true } } },
+      include: { rentalItems: { include: { gearItem: true } } },
     });
 
-    if (!order) throw AppError.notFound("Rental order not found");
+    if (!order) throw new AppError(404, "Rental order not found");
     if (order.customerId !== customerId) {
-      throw AppError.forbidden("You do not own this rental order");
+      throw new AppError(403, "You do not own this rental order");
     }
     if (order.status !== "CONFIRMED") {
-      throw AppError.badRequest(
+      throw new AppError(400,
         `Order must be CONFIRMED by the provider before payment. Current status: ${order.status}`
       );
     }
@@ -38,7 +37,7 @@ export const paymentService = {
       mode: "payment",
       payment_method_types: ["card"],
       customer_email: undefined,
-      line_items: order.items.map((item) => ({
+      line_items: order.rentalItems.map((item) => ({
         price_data: {
           currency: "usd",
           product_data: { name: item.gearItem.name },
@@ -102,7 +101,7 @@ export const paymentService = {
   /** Client-side confirmation callback: verify the session directly with Stripe. */
   async confirmBySessionId(sessionId: string) {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
-    if (!session) throw AppError.notFound("Checkout session not found");
+    if (!session) throw new AppError(404, "Checkout session not found");
 
     if (session.payment_status === "paid") {
       return this.markCompleted(sessionId, session.payment_intent as string);
@@ -128,10 +127,10 @@ export const paymentService = {
       where: { id: paymentId },
       include: { rentalOrder: true },
     });
-    if (!payment) throw AppError.notFound("Payment not found");
+    if (!payment) throw new AppError(404, "Payment not found");
 
     if (payment.rentalOrder.customerId !== customerId && role !== "ADMIN") {
-      throw AppError.forbidden("You do not have access to this payment");
+      throw new AppError(403, "You do not have access to this payment");
     }
     return payment;
   },
