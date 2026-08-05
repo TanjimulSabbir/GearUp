@@ -81,43 +81,13 @@ export const rentalService = {
     });
   },
 
-  /**
-   * Provider confirms a PLACED rental order, moving it to CONFIRMED.
-   * This is the missing link that unblocks payment: payment.service
-   * refuses to create a checkout session for anything but a CONFIRMED order.
-   * Route this behind auth("PROVIDER") and verify the provider owns the gear.
-   */
-  async confirm(providerId: string, orderId: string) {
-    const order = await prisma.rentalOrder.findUnique({
-      where: { id: orderId },
-      include: { rentalItems: { include: { gearItem: true } } },
-    });
-    if (!order) {
-      throw new AppError(httpStatus.NOT_FOUND, "Rental order not found.");
-    }
-
-    const isProviderOfItem = order.rentalItems.some(
-      (item) => item.gearItem.providerId === providerId,
-    );
-    if (!isProviderOfItem) {
-      throw new AppError(
-        httpStatus.FORBIDDEN,
-        "You do not provide any items in this order.",
-      );
-    }
-
-    if (order.status !== "PLACED") {
-      throw new AppError(
-        httpStatus.BAD_REQUEST,
-        `Order in status ${order.status} cannot be confirmed.`,
-      );
-    }
-
-    return prisma.rentalOrder.update({
-      where: { id: orderId },
-      data: { status: "CONFIRMED" },
-    });
-  },
+  // NOTE: order confirmation (PLACED -> CONFIRMED) lives in
+  // provider.service.updateOrderStatus, reached via
+  // PATCH /api/provider/orders/:id — that's the single source of truth
+  // for all provider-driven status transitions (confirm, picked_up,
+  // returned, cancelled), matching the documented API spec. A duplicate
+  // confirm() method used to live here; removed to avoid two competing
+  // code paths for the same transition.
 
   /**
    * Compensating transaction: called when a payment fails or its checkout

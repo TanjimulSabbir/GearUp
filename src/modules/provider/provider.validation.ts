@@ -38,7 +38,9 @@ export const createGearItemSchema = z.object({
 
     condition: z
       .enum(GearCondition, {
-        error: "Condition must be NEW, GOOD, FAIR, or POOR",
+        // Fixed: was "NEW, GOOD, FAIR, or POOR" — actual enum has no POOR,
+        // it has DAMAGED.
+        error: "Condition must be NEW, GOOD, FAIR, or DAMAGED",
       })
       .default("GOOD"),
 

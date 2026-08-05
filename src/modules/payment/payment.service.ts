@@ -1,6 +1,9 @@
 import crypto from "crypto";
 import { prisma } from "../../lib/prisma";
+import { stripe } from "../../lib/stripe";
 import AppError from "../../utils/errors/app.error";
+import { rentalService } from "../rental/rental.service"; // adjust path to match your folder layout
+import config from "../../config";
 
 
 export const paymentService = {
@@ -45,8 +48,8 @@ export const paymentService = {
         },
         quantity: item.quantity * item.days,
       })),
-      success_url: `${env.stripe.successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: env.stripe.cancelUrl,
+      success_url: `${config.frontend_url}?payment=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${config.frontend_url}?payment=false&session_id={CHECKOUT_SESSION_ID}`,
       metadata: { rentalOrderId, transactionId },
     });
 
@@ -88,14 +91,24 @@ export const paymentService = {
     return updatedPayment;
   },
 
+  /**
+   * Marks a payment FAILED and releases the reserved stock via
+   * rentalService.releaseStock. Sets the order to a terminal PAYMENT_FAILED
+   * state — this order cannot be paid again; the customer must place a
+   * new rental order if they still want the gear.
+   */
   async markFailed(stripeSessionId: string) {
     const payment = await prisma.payment.findUnique({ where: { stripeSessionId } });
     if (!payment || payment.status === "COMPLETED") return payment;
 
-    return prisma.payment.update({
+    const updated = await prisma.payment.update({
       where: { id: payment.id },
       data: { status: "FAILED" },
     });
+
+    await rentalService.releaseStock(payment.rentalOrderId);
+
+    return updated;
   },
 
   /** Client-side confirmation callback: verify the session directly with Stripe. */
