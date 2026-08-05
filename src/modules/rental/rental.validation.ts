@@ -34,15 +34,3 @@ export const rentalIdParamSchema = z.object({
     })
     .strict(),
 });
-
-// NOTE: this looks like it belongs in a review module, not rental.
-// Review model only has gearItemId + userId + rating + comment — no rentalOrderId.
-export const createReviewSchema = z.object({
-  body: z
-    .object({
-      gearItemId: z.uuid("Invalid gear id"),
-      rating: z.coerce.number().int().min(1).max(5),
-      comment: z.string().trim().max(1000).optional(),
-    })
-    .strict(),
-});

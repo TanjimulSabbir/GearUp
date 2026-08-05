@@ -10,7 +10,12 @@ export const rentalController = {
     sendResponse(res, {
       success: true,
       statusCode: httpStatus.CREATED,
-      message: "Rental order created successfully",
+      // Fixed: previous message said "check your email" — no email/notification
+      // service exists anywhere in this codebase. Left as an accurate
+      // description of what actually happens instead. Add the email step
+      // first (or a GET /rentals/:id poll on the frontend) before promising
+      // it in the response message again.
+      message: "Rental order created successfully. Waiting for provider confirmation before you can pay.",
       data: order,
     });
   }),

@@ -27,7 +27,6 @@ export const paymentService = {
       where: { rentalOrderId, status: "PENDING" },
     });
     if (existingPending?.stripeSessionId) {
-      // Reuse the existing pending session rather than creating duplicates.
       const session = await stripe.checkout.sessions.retrieve(existingPending.stripeSessionId);
       if (session.status === "open") {
         return { url: session.url, sessionId: session.id, paymentId: existingPending.id };
@@ -49,7 +48,7 @@ export const paymentService = {
         quantity: item.quantity * item.days,
       })),
       success_url: `${config.frontend_url}?payment=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${config.frontend_url}?payment=false&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${config.frontend_url}?payment=false`,
       metadata: { rentalOrderId, transactionId },
     });
 
@@ -67,11 +66,10 @@ export const paymentService = {
     return { url: session.url, sessionId: session.id, paymentId: payment.id };
   },
 
-  /** Marks a payment COMPLETED and its order PAID. Idempotent. */
   async markCompleted(stripeSessionId: string, paymentIntentId?: string | null) {
     const payment = await prisma.payment.findUnique({ where: { stripeSessionId } });
     if (!payment) return null;
-    if (payment.status === "COMPLETED") return payment; // already processed
+    if (payment.status === "COMPLETED") return payment;
 
     const [updatedPayment] = await prisma.$transaction([
       prisma.payment.update({
@@ -91,12 +89,6 @@ export const paymentService = {
     return updatedPayment;
   },
 
-  /**
-   * Marks a payment FAILED and releases the reserved stock via
-   * rentalService.releaseStock. Sets the order to a terminal PAYMENT_FAILED
-   * state — this order cannot be paid again; the customer must place a
-   * new rental order if they still want the gear.
-   */
   async markFailed(stripeSessionId: string) {
     const payment = await prisma.payment.findUnique({ where: { stripeSessionId } });
     if (!payment || payment.status === "COMPLETED") return payment;
@@ -111,8 +103,16 @@ export const paymentService = {
     return updated;
   },
 
-  /** Client-side confirmation callback: verify the session directly with Stripe. */
-  async confirmBySessionId(sessionId: string) {
+  async confirmBySessionId(sessionId: string, customerId: string) {
+    const payment = await prisma.payment.findUnique({
+      where: { stripeSessionId: sessionId },
+      include: { rentalOrder: true },
+    });
+    if (!payment) throw new AppError(404, "Checkout session not found");
+    if (payment.rentalOrder.customerId !== customerId) {
+      throw new AppError(403, "You do not have access to this payment");
+    }
+
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     if (!session) throw new AppError(404, "Checkout session not found");
 
@@ -123,7 +123,6 @@ export const paymentService = {
       return this.markFailed(sessionId);
     }
 
-    const payment = await prisma.payment.findUnique({ where: { stripeSessionId: sessionId } });
     return payment;
   },
 

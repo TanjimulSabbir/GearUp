@@ -25,6 +25,7 @@ router.put(
   validate(updateGearItemSchema),
   providerController.updateGear,
 );
+
 router.delete("/gear/:id", providerController.removeGear);
 
 router.get("/orders", providerController.getMyOrders);

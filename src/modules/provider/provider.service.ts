@@ -4,12 +4,7 @@ import { prisma } from "../../lib/prisma";
 import AppError from "../../utils/errors/app.error";
 import httpStatus from "http-status";
 
-// Valid provider-driven status transitions.
-// PAYMENT_FAILED is a terminal state (empty array) — once a checkout
-// session fails/expires, the reserved stock has already been released
-// (see rental.service.releaseStock), so there is nothing left to confirm
-// or transition on this specific order. The customer must place a new
-// rental order to try again, rather than resuming this one.
+
 const ALLOWED_TRANSITIONS: Record<RentalStatus, RentalStatus[]> = {
   PLACED: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["CANCELLED"],
@@ -151,9 +146,6 @@ export const providerServices = {
 
     const allowed = ALLOWED_TRANSITIONS[order.status] ?? [];
     if (!allowed.includes(nextStatus)) {
-      // Fixed: was previously reusing the ownership error message here,
-      // which misled callers into thinking it was a permissions problem
-      // rather than an invalid state transition.
       throw new AppError(
         httpStatus.BAD_REQUEST,
         `Cannot transition order from ${order.status} to ${nextStatus}.`,

@@ -4,6 +4,7 @@ import { paymentController } from "./payment.controller";
 import {
   createPaymentSchema,
   paymentIdParamSchema,
+  confirmPaymentSchema,
 } from "./payment.validation";
 import { validate } from "../../utils/errors/zod.error";
 
@@ -15,8 +16,23 @@ router.post(
   validate(createPaymentSchema),
   paymentController.create,
 );
-router.post("/confirm", auth("CUSTOMER"), paymentController.confirm);
+
+router.post(
+  "/confirm",
+  auth("CUSTOMER"),
+  validate(confirmPaymentSchema),
+  paymentController.confirmIsPaid,
+);
+
 router.get("/", auth("CUSTOMER"), paymentController.getMine);
-router.get("/:id", validate(paymentIdParamSchema), paymentController.getById);
+
+router.get(
+  "/:id",
+  auth("CUSTOMER", "ADMIN"),
+  validate(paymentIdParamSchema),
+  paymentController.getById,
+);
+
+router.post("/webhook", paymentController.webhook);
 
 export const paymentRoutes = router;

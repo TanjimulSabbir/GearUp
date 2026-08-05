@@ -13,6 +13,7 @@ import { gearRoutes } from "./modules/gear/gear.routes";
 import { providerRoutes } from "./modules/provider/provider.routes";
 import { rentalRoutes } from "./modules/rental/rental.routes";
 import { paymentRoutes } from "./modules/payment/payment.routes";
+import { reviewRoutes } from "./modules/review/review.routes";
 
 const app: Application = express();
 
@@ -22,7 +23,7 @@ app.use(
     credentials: true,
   }),
 );
-app.use("/api/payment/webhook", express.raw({ type: "application/json" }));
+app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -43,6 +44,7 @@ app.use("/api/v1/gear", gearRoutes);
 app.use("/api/v1/provider", providerRoutes);
 app.use("/api/v1/rentals", rentalRoutes);
 app.use("/api/v1/payment", paymentRoutes);
+app.use("/api/v1/reviews", reviewRoutes);
 
 app.use(notFound);
 

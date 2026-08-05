@@ -24,27 +24,25 @@ function daysBetween(start: Date, end: Date) {
 export const rentalService = {
   async create(customerId: string, input: CreateRentalInput) {
     const days = daysBetween(input.startDate, input.endDate);
+    const gearIds = input.items.map((i) => i.gearItemId);
 
     return prisma.$transaction(async (tx) => {
+      // Fixed: was one findFirst() per item (N queries). Now a single
+      // findMany() for all items in the cart.
+      const gearItems = await tx.gearItem.findMany({
+        where: { id: { in: gearIds }, isAvailable: true },
+      });
+      const gearById = new Map(gearItems.map((g) => [g.id, g]));
+
       let totalAmount = 0;
       const rentalItemsData: RentalItemCreateData[] = [];
 
       for (const item of input.items) {
-        const gear = await tx.gearItem.findFirst({
-          where: { id: item.gearItemId, isAvailable: true },
-        });
-
+        const gear = gearById.get(item.gearItemId);
         if (!gear) {
           throw new AppError(
             httpStatus.NOT_FOUND,
             `Gear item ${item.gearItemId} not found or unavailable.`,
-          );
-        }
-
-        if (gear.stock < item.quantity) {
-          throw new AppError(
-            httpStatus.CONFLICT,
-            `Insufficient stock for "${gear.name}". Available: ${gear.stock}`,
           );
         }
 
@@ -57,10 +55,22 @@ export const rentalService = {
           days,
         });
 
-        await tx.gearItem.update({
-          where: { id: gear.id },
+        // Fixed: was a separate findFirst-then-update, which left a race
+        // window where two concurrent orders could both pass the stock
+        // check for the last unit. This makes the check and the decrement
+        // one atomic operation — if another transaction already took the
+        // stock, this updates 0 rows instead of going negative.
+        const result = await tx.gearItem.updateMany({
+          where: { id: gear.id, stock: { gte: item.quantity } },
           data: { stock: { decrement: item.quantity } },
         });
+
+        if (result.count === 0) {
+          throw new AppError(
+            httpStatus.CONFLICT,
+            `Insufficient stock for "${gear.name}". Someone else may have just booked it — please try again.`,
+          );
+        }
       }
 
       return tx.rentalOrder.create({
@@ -81,29 +91,12 @@ export const rentalService = {
     });
   },
 
-  // NOTE: order confirmation (PLACED -> CONFIRMED) lives in
-  // provider.service.updateOrderStatus, reached via
-  // PATCH /api/provider/orders/:id — that's the single source of truth
-  // for all provider-driven status transitions (confirm, picked_up,
-  // returned, cancelled), matching the documented API spec. A duplicate
-  // confirm() method used to live here; removed to avoid two competing
-  // code paths for the same transition.
-
-  /**
-   * Compensating transaction: called when a payment fails or its checkout
-   * session expires. Puts the reserved stock back and moves the order to
-   * a terminal failed state so it's clearly distinguishable from a normal
-   * customer cancellation. Idempotent — safe to call more than once.
-   */
   async releaseStock(orderId: string) {
     const order = await prisma.rentalOrder.findUnique({
       where: { id: orderId },
       include: { rentalItems: true },
     });
     if (!order) return null;
-
-    // Only release if the order hasn't already been resolved another way
-    // (e.g. already PAID, or already released once).
     if (!["PLACED", "CONFIRMED"].includes(order.status)) return order;
 
     return prisma.$transaction(async (tx) => {

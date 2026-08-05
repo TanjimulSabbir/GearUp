@@ -22,11 +22,13 @@ export const paymentController = {
   }),
 
   // Client-side callback after Stripe redirects back with ?session_id=...
-  confirm: catchAsync(async (req: Request, res: Response) => {
+  confirmIsPaid: catchAsync(async (req: Request, res: Response) => {
     const sessionId = (req.body.sessionId || req.query.session_id) as string;
     if (!sessionId) throw new AppError(400, "Missing session_id in request");
-
-    const payment = await paymentService.confirmBySessionId(sessionId);
+    const payment = await paymentService.confirmBySessionId(
+      sessionId,
+      req.user!.id,
+    );
     sendResponse(res, {
       success: true,
       statusCode: 201,
@@ -59,7 +61,6 @@ export const paymentController = {
     });
   }),
 
-  // Stripe webhook - mounted with express.raw() body parsing (see app.ts)
   webhook: async (req: Request, res: Response) => {
     const signature = req.headers["stripe-signature"] as string;
     let event: Stripe.Event;
@@ -72,13 +73,11 @@ export const paymentController = {
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: `Webhook signature verification failed: ${message}`,
-          errorDetails: null,
-        });
+      return res.status(400).json({
+        success: false,
+        message: `Webhook signature verification failed: ${message}`,
+        errorDetails: null,
+      });
     }
 
     switch (event.type) {
