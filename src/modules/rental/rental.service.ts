@@ -9,6 +9,13 @@ interface CreateRentalInput {
   items: { gearItemId: string; quantity: number }[];
 }
 
+interface RentalItemCreateData {
+  gearItemId: string;
+  quantity: number;
+  pricePerDay: number;
+  days: number;
+}
+
 function daysBetween(start: Date, end: Date) {
   const ms = end.getTime() - start.getTime();
   return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)));
@@ -20,7 +27,7 @@ export const rentalService = {
 
     return prisma.$transaction(async (tx) => {
       let totalAmount = 0;
-      const rentalItemsData: { gearItemId: string; quantity: number }[] = [];
+      const rentalItemsData: RentalItemCreateData[] = [];
 
       for (const item of input.items) {
         const gear = await tx.gearItem.findFirst({
@@ -33,7 +40,7 @@ export const rentalService = {
             `Gear item ${item.gearItemId} not found or unavailable.`,
           );
         }
-        
+
         if (gear.stock < item.quantity) {
           throw new AppError(
             httpStatus.CONFLICT,
@@ -46,6 +53,8 @@ export const rentalService = {
         rentalItemsData.push({
           gearItemId: gear.id,
           quantity: item.quantity,
+          pricePerDay: gear.rentalPrice, // snapshot, protects against future price changes
+          days,
         });
 
         await tx.gearItem.update({
@@ -60,6 +69,7 @@ export const rentalService = {
           startDate: input.startDate,
           endDate: input.endDate,
           totalAmount,
+          status: "PLACED",
           rentalItems: { create: rentalItemsData },
         },
         include: {
@@ -67,6 +77,78 @@ export const rentalService = {
             include: { gearItem: { select: { id: true, name: true, image: true } } },
           },
         },
+      });
+    });
+  },
+
+  /**
+   * Provider confirms a PLACED rental order, moving it to CONFIRMED.
+   * This is the missing link that unblocks payment: payment.service
+   * refuses to create a checkout session for anything but a CONFIRMED order.
+   * Route this behind auth("PROVIDER") and verify the provider owns the gear.
+   */
+  async confirm(providerId: string, orderId: string) {
+    const order = await prisma.rentalOrder.findUnique({
+      where: { id: orderId },
+      include: { rentalItems: { include: { gearItem: true } } },
+    });
+    if (!order) {
+      throw new AppError(httpStatus.NOT_FOUND, "Rental order not found.");
+    }
+
+    const isProviderOfItem = order.rentalItems.some(
+      (item) => item.gearItem.providerId === providerId,
+    );
+    if (!isProviderOfItem) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You do not provide any items in this order.",
+      );
+    }
+
+    if (order.status !== "PLACED") {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Order in status ${order.status} cannot be confirmed.`,
+      );
+    }
+
+    return prisma.rentalOrder.update({
+      where: { id: orderId },
+      data: { status: "CONFIRMED" },
+    });
+  },
+
+  /**
+   * Compensating transaction: called when a payment fails or its checkout
+   * session expires. Puts the reserved stock back and moves the order to
+   * a terminal failed state so it's clearly distinguishable from a normal
+   * customer cancellation. Idempotent — safe to call more than once.
+   */
+  async releaseStock(orderId: string) {
+    const order = await prisma.rentalOrder.findUnique({
+      where: { id: orderId },
+      include: { rentalItems: true },
+    });
+    if (!order) return null;
+
+    // Only release if the order hasn't already been resolved another way
+    // (e.g. already PAID, or already released once).
+    if (!["PLACED", "CONFIRMED"].includes(order.status)) return order;
+
+    return prisma.$transaction(async (tx) => {
+      await Promise.all(
+        order.rentalItems.map((item) =>
+          tx.gearItem.update({
+            where: { id: item.gearItemId },
+            data: { stock: { increment: item.quantity } },
+          }),
+        ),
+      );
+
+      return tx.rentalOrder.update({
+        where: { id: orderId },
+        data: { status: "PAYMENT_FAILED" },
       });
     });
   },

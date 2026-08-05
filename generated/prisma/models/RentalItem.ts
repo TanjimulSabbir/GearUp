@@ -28,10 +28,14 @@ export type AggregateRentalItem = {
 
 export type RentalItemAvgAggregateOutputType = {
   quantity: number | null
+  pricePerDay: number | null
+  days: number | null
 }
 
 export type RentalItemSumAggregateOutputType = {
   quantity: number | null
+  pricePerDay: number | null
+  days: number | null
 }
 
 export type RentalItemMinAggregateOutputType = {
@@ -39,6 +43,8 @@ export type RentalItemMinAggregateOutputType = {
   rentalOrderId: string | null
   gearItemId: string | null
   quantity: number | null
+  pricePerDay: number | null
+  days: number | null
 }
 
 export type RentalItemMaxAggregateOutputType = {
@@ -46,6 +52,8 @@ export type RentalItemMaxAggregateOutputType = {
   rentalOrderId: string | null
   gearItemId: string | null
   quantity: number | null
+  pricePerDay: number | null
+  days: number | null
 }
 
 export type RentalItemCountAggregateOutputType = {
@@ -53,16 +61,22 @@ export type RentalItemCountAggregateOutputType = {
   rentalOrderId: number
   gearItemId: number
   quantity: number
+  pricePerDay: number
+  days: number
   _all: number
 }
 
 
 export type RentalItemAvgAggregateInputType = {
   quantity?: true
+  pricePerDay?: true
+  days?: true
 }
 
 export type RentalItemSumAggregateInputType = {
   quantity?: true
+  pricePerDay?: true
+  days?: true
 }
 
 export type RentalItemMinAggregateInputType = {
@@ -70,6 +84,8 @@ export type RentalItemMinAggregateInputType = {
   rentalOrderId?: true
   gearItemId?: true
   quantity?: true
+  pricePerDay?: true
+  days?: true
 }
 
 export type RentalItemMaxAggregateInputType = {
@@ -77,6 +93,8 @@ export type RentalItemMaxAggregateInputType = {
   rentalOrderId?: true
   gearItemId?: true
   quantity?: true
+  pricePerDay?: true
+  days?: true
 }
 
 export type RentalItemCountAggregateInputType = {
@@ -84,6 +102,8 @@ export type RentalItemCountAggregateInputType = {
   rentalOrderId?: true
   gearItemId?: true
   quantity?: true
+  pricePerDay?: true
+  days?: true
   _all?: true
 }
 
@@ -178,6 +198,8 @@ export type RentalItemGroupByOutputType = {
   rentalOrderId: string
   gearItemId: string
   quantity: number
+  pricePerDay: number
+  days: number
   _count: RentalItemCountAggregateOutputType | null
   _avg: RentalItemAvgAggregateOutputType | null
   _sum: RentalItemSumAggregateOutputType | null
@@ -208,6 +230,8 @@ export type RentalItemWhereInput = {
   rentalOrderId?: Prisma.StringFilter<"RentalItem"> | string
   gearItemId?: Prisma.StringFilter<"RentalItem"> | string
   quantity?: Prisma.IntFilter<"RentalItem"> | number
+  pricePerDay?: Prisma.FloatFilter<"RentalItem"> | number
+  days?: Prisma.IntFilter<"RentalItem"> | number
   rentalOrder?: Prisma.XOR<Prisma.RentalOrderScalarRelationFilter, Prisma.RentalOrderWhereInput>
   gearItem?: Prisma.XOR<Prisma.GearItemScalarRelationFilter, Prisma.GearItemWhereInput>
 }
@@ -217,6 +241,8 @@ export type RentalItemOrderByWithRelationInput = {
   rentalOrderId?: Prisma.SortOrder
   gearItemId?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
+  pricePerDay?: Prisma.SortOrder
+  days?: Prisma.SortOrder
   rentalOrder?: Prisma.RentalOrderOrderByWithRelationInput
   gearItem?: Prisma.GearItemOrderByWithRelationInput
 }
@@ -229,6 +255,8 @@ export type RentalItemWhereUniqueInput = Prisma.AtLeast<{
   rentalOrderId?: Prisma.StringFilter<"RentalItem"> | string
   gearItemId?: Prisma.StringFilter<"RentalItem"> | string
   quantity?: Prisma.IntFilter<"RentalItem"> | number
+  pricePerDay?: Prisma.FloatFilter<"RentalItem"> | number
+  days?: Prisma.IntFilter<"RentalItem"> | number
   rentalOrder?: Prisma.XOR<Prisma.RentalOrderScalarRelationFilter, Prisma.RentalOrderWhereInput>
   gearItem?: Prisma.XOR<Prisma.GearItemScalarRelationFilter, Prisma.GearItemWhereInput>
 }, "id">
@@ -238,6 +266,8 @@ export type RentalItemOrderByWithAggregationInput = {
   rentalOrderId?: Prisma.SortOrder
   gearItemId?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
+  pricePerDay?: Prisma.SortOrder
+  days?: Prisma.SortOrder
   _count?: Prisma.RentalItemCountOrderByAggregateInput
   _avg?: Prisma.RentalItemAvgOrderByAggregateInput
   _max?: Prisma.RentalItemMaxOrderByAggregateInput
@@ -253,11 +283,15 @@ export type RentalItemScalarWhereWithAggregatesInput = {
   rentalOrderId?: Prisma.StringWithAggregatesFilter<"RentalItem"> | string
   gearItemId?: Prisma.StringWithAggregatesFilter<"RentalItem"> | string
   quantity?: Prisma.IntWithAggregatesFilter<"RentalItem"> | number
+  pricePerDay?: Prisma.FloatWithAggregatesFilter<"RentalItem"> | number
+  days?: Prisma.IntWithAggregatesFilter<"RentalItem"> | number
 }
 
 export type RentalItemCreateInput = {
   id?: string
   quantity: number
+  pricePerDay: number
+  days: number
   rentalOrder: Prisma.RentalOrderCreateNestedOneWithoutRentalItemsInput
   gearItem: Prisma.GearItemCreateNestedOneWithoutRentalItemsInput
 }
@@ -267,11 +301,15 @@ export type RentalItemUncheckedCreateInput = {
   rentalOrderId: string
   gearItemId: string
   quantity: number
+  pricePerDay: number
+  days: number
 }
 
 export type RentalItemUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
+  pricePerDay?: Prisma.FloatFieldUpdateOperationsInput | number
+  days?: Prisma.IntFieldUpdateOperationsInput | number
   rentalOrder?: Prisma.RentalOrderUpdateOneRequiredWithoutRentalItemsNestedInput
   gearItem?: Prisma.GearItemUpdateOneRequiredWithoutRentalItemsNestedInput
 }
@@ -281,6 +319,8 @@ export type RentalItemUncheckedUpdateInput = {
   rentalOrderId?: Prisma.StringFieldUpdateOperationsInput | string
   gearItemId?: Prisma.StringFieldUpdateOperationsInput | string
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
+  pricePerDay?: Prisma.FloatFieldUpdateOperationsInput | number
+  days?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type RentalItemCreateManyInput = {
@@ -288,11 +328,15 @@ export type RentalItemCreateManyInput = {
   rentalOrderId: string
   gearItemId: string
   quantity: number
+  pricePerDay: number
+  days: number
 }
 
 export type RentalItemUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
+  pricePerDay?: Prisma.FloatFieldUpdateOperationsInput | number
+  days?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type RentalItemUncheckedUpdateManyInput = {
@@ -300,6 +344,8 @@ export type RentalItemUncheckedUpdateManyInput = {
   rentalOrderId?: Prisma.StringFieldUpdateOperationsInput | string
   gearItemId?: Prisma.StringFieldUpdateOperationsInput | string
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
+  pricePerDay?: Prisma.FloatFieldUpdateOperationsInput | number
+  days?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type RentalItemListRelationFilter = {
@@ -317,10 +363,14 @@ export type RentalItemCountOrderByAggregateInput = {
   rentalOrderId?: Prisma.SortOrder
   gearItemId?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
+  pricePerDay?: Prisma.SortOrder
+  days?: Prisma.SortOrder
 }
 
 export type RentalItemAvgOrderByAggregateInput = {
   quantity?: Prisma.SortOrder
+  pricePerDay?: Prisma.SortOrder
+  days?: Prisma.SortOrder
 }
 
 export type RentalItemMaxOrderByAggregateInput = {
@@ -328,6 +378,8 @@ export type RentalItemMaxOrderByAggregateInput = {
   rentalOrderId?: Prisma.SortOrder
   gearItemId?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
+  pricePerDay?: Prisma.SortOrder
+  days?: Prisma.SortOrder
 }
 
 export type RentalItemMinOrderByAggregateInput = {
@@ -335,10 +387,14 @@ export type RentalItemMinOrderByAggregateInput = {
   rentalOrderId?: Prisma.SortOrder
   gearItemId?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
+  pricePerDay?: Prisma.SortOrder
+  days?: Prisma.SortOrder
 }
 
 export type RentalItemSumOrderByAggregateInput = {
   quantity?: Prisma.SortOrder
+  pricePerDay?: Prisma.SortOrder
+  days?: Prisma.SortOrder
 }
 
 export type RentalItemCreateNestedManyWithoutGearItemInput = {
@@ -428,6 +484,8 @@ export type RentalItemUncheckedUpdateManyWithoutRentalOrderNestedInput = {
 export type RentalItemCreateWithoutGearItemInput = {
   id?: string
   quantity: number
+  pricePerDay: number
+  days: number
   rentalOrder: Prisma.RentalOrderCreateNestedOneWithoutRentalItemsInput
 }
 
@@ -435,6 +493,8 @@ export type RentalItemUncheckedCreateWithoutGearItemInput = {
   id?: string
   rentalOrderId: string
   quantity: number
+  pricePerDay: number
+  days: number
 }
 
 export type RentalItemCreateOrConnectWithoutGearItemInput = {
@@ -471,11 +531,15 @@ export type RentalItemScalarWhereInput = {
   rentalOrderId?: Prisma.StringFilter<"RentalItem"> | string
   gearItemId?: Prisma.StringFilter<"RentalItem"> | string
   quantity?: Prisma.IntFilter<"RentalItem"> | number
+  pricePerDay?: Prisma.FloatFilter<"RentalItem"> | number
+  days?: Prisma.IntFilter<"RentalItem"> | number
 }
 
 export type RentalItemCreateWithoutRentalOrderInput = {
   id?: string
   quantity: number
+  pricePerDay: number
+  days: number
   gearItem: Prisma.GearItemCreateNestedOneWithoutRentalItemsInput
 }
 
@@ -483,6 +547,8 @@ export type RentalItemUncheckedCreateWithoutRentalOrderInput = {
   id?: string
   gearItemId: string
   quantity: number
+  pricePerDay: number
+  days: number
 }
 
 export type RentalItemCreateOrConnectWithoutRentalOrderInput = {
@@ -515,11 +581,15 @@ export type RentalItemCreateManyGearItemInput = {
   id?: string
   rentalOrderId: string
   quantity: number
+  pricePerDay: number
+  days: number
 }
 
 export type RentalItemUpdateWithoutGearItemInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
+  pricePerDay?: Prisma.FloatFieldUpdateOperationsInput | number
+  days?: Prisma.IntFieldUpdateOperationsInput | number
   rentalOrder?: Prisma.RentalOrderUpdateOneRequiredWithoutRentalItemsNestedInput
 }
 
@@ -527,23 +597,31 @@ export type RentalItemUncheckedUpdateWithoutGearItemInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   rentalOrderId?: Prisma.StringFieldUpdateOperationsInput | string
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
+  pricePerDay?: Prisma.FloatFieldUpdateOperationsInput | number
+  days?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type RentalItemUncheckedUpdateManyWithoutGearItemInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   rentalOrderId?: Prisma.StringFieldUpdateOperationsInput | string
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
+  pricePerDay?: Prisma.FloatFieldUpdateOperationsInput | number
+  days?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type RentalItemCreateManyRentalOrderInput = {
   id?: string
   gearItemId: string
   quantity: number
+  pricePerDay: number
+  days: number
 }
 
 export type RentalItemUpdateWithoutRentalOrderInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
+  pricePerDay?: Prisma.FloatFieldUpdateOperationsInput | number
+  days?: Prisma.IntFieldUpdateOperationsInput | number
   gearItem?: Prisma.GearItemUpdateOneRequiredWithoutRentalItemsNestedInput
 }
 
@@ -551,12 +629,16 @@ export type RentalItemUncheckedUpdateWithoutRentalOrderInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   gearItemId?: Prisma.StringFieldUpdateOperationsInput | string
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
+  pricePerDay?: Prisma.FloatFieldUpdateOperationsInput | number
+  days?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type RentalItemUncheckedUpdateManyWithoutRentalOrderInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   gearItemId?: Prisma.StringFieldUpdateOperationsInput | string
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
+  pricePerDay?: Prisma.FloatFieldUpdateOperationsInput | number
+  days?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 
@@ -566,6 +648,8 @@ export type RentalItemSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   rentalOrderId?: boolean
   gearItemId?: boolean
   quantity?: boolean
+  pricePerDay?: boolean
+  days?: boolean
   rentalOrder?: boolean | Prisma.RentalOrderDefaultArgs<ExtArgs>
   gearItem?: boolean | Prisma.GearItemDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["rentalItem"]>
@@ -575,6 +659,8 @@ export type RentalItemSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   rentalOrderId?: boolean
   gearItemId?: boolean
   quantity?: boolean
+  pricePerDay?: boolean
+  days?: boolean
   rentalOrder?: boolean | Prisma.RentalOrderDefaultArgs<ExtArgs>
   gearItem?: boolean | Prisma.GearItemDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["rentalItem"]>
@@ -584,6 +670,8 @@ export type RentalItemSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   rentalOrderId?: boolean
   gearItemId?: boolean
   quantity?: boolean
+  pricePerDay?: boolean
+  days?: boolean
   rentalOrder?: boolean | Prisma.RentalOrderDefaultArgs<ExtArgs>
   gearItem?: boolean | Prisma.GearItemDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["rentalItem"]>
@@ -593,9 +681,11 @@ export type RentalItemSelectScalar = {
   rentalOrderId?: boolean
   gearItemId?: boolean
   quantity?: boolean
+  pricePerDay?: boolean
+  days?: boolean
 }
 
-export type RentalItemOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "rentalOrderId" | "gearItemId" | "quantity", ExtArgs["result"]["rentalItem"]>
+export type RentalItemOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "rentalOrderId" | "gearItemId" | "quantity" | "pricePerDay" | "days", ExtArgs["result"]["rentalItem"]>
 export type RentalItemInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   rentalOrder?: boolean | Prisma.RentalOrderDefaultArgs<ExtArgs>
   gearItem?: boolean | Prisma.GearItemDefaultArgs<ExtArgs>
@@ -620,6 +710,8 @@ export type $RentalItemPayload<ExtArgs extends runtime.Types.Extensions.Internal
     rentalOrderId: string
     gearItemId: string
     quantity: number
+    pricePerDay: number
+    days: number
   }, ExtArgs["result"]["rentalItem"]>
   composites: {}
 }
@@ -1049,6 +1141,8 @@ export interface RentalItemFieldRefs {
   readonly rentalOrderId: Prisma.FieldRef<"RentalItem", 'String'>
   readonly gearItemId: Prisma.FieldRef<"RentalItem", 'String'>
   readonly quantity: Prisma.FieldRef<"RentalItem", 'Int'>
+  readonly pricePerDay: Prisma.FieldRef<"RentalItem", 'Float'>
+  readonly days: Prisma.FieldRef<"RentalItem", 'Int'>
 }
     
 

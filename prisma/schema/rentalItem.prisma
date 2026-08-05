@@ -4,7 +4,9 @@ model RentalItem {
   rentalOrderId String
   gearItemId    String
 
-  quantity Int
+  quantity    Int
+  pricePerDay Float
+  days        Int
 
   rentalOrder RentalOrder @relation(fields: [rentalOrderId], references: [id])
 

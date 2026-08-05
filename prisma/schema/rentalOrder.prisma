@@ -14,7 +14,7 @@ model RentalOrder {
     rentalItems RentalItem[]
     reviews     Review[]
 
-    payments Payment?
+    payments Payment[]
 
     createdAt DateTime @default(now())
 

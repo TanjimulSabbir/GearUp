@@ -1080,6 +1080,8 @@ export const PaymentScalarFieldEnum = {
   amount: 'amount',
   method: 'method',
   status: 'status',
+  stripeSessionId: 'stripeSessionId',
+  stripePaymentIntentId: 'stripePaymentIntentId',
   paidAt: 'paidAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -1104,7 +1106,9 @@ export const RentalItemScalarFieldEnum = {
   id: 'id',
   rentalOrderId: 'rentalOrderId',
   gearItemId: 'gearItemId',
-  quantity: 'quantity'
+  quantity: 'quantity',
+  pricePerDay: 'pricePerDay',
+  days: 'days'
 } as const
 
 export type RentalItemScalarFieldEnum = (typeof RentalItemScalarFieldEnum)[keyof typeof RentalItemScalarFieldEnum]
