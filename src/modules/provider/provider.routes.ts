@@ -11,10 +11,10 @@ import { validate } from "../../utils/errors/zod.error";
 const router = Router();
 
 router.use(auth("PROVIDER"));
+
 router.post(
   "/gear",
-  auth("PROVIDER"),
-  validate(createGearItemSchema),
+  // validate(createGearItemSchema),
   providerController.createGearItem,
 );
 

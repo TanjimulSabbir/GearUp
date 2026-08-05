@@ -29,7 +29,6 @@ export const userRegisterSchema = z.object({
       .enum(["CUSTOMER", "PROVIDER"], {
         error: "Role must be either CUSTOMER or PROVIDER",
       })
-      .default("CUSTOMER"),
   }),
 });
 

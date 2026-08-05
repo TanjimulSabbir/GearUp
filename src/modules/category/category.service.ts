@@ -1,7 +1,7 @@
+import httpStatus from "http-status";
+import { CategoryCreateInput } from "../../../generated/prisma/models";
 import { prisma } from "../../lib/prisma";
 import AppError from "../../utils/errors/app.error";
-import { slugify } from "./category.validation";
-import httpStatus from "http-status";
 
 export const categoryService = {
   async getAll(query: any) {
@@ -31,10 +31,16 @@ export const categoryService = {
     };
   },
 
-  async create(data: { name: string; description?: string }) {
-    const slug = slugify(data.name);
+  async create(data: CategoryCreateInput[]) {
+    if (Array.isArray(data)) {
+      return this.createMany(data);
+    }
+    return this.createOne(data);
+  },
+
+  async createOne(data: CategoryCreateInput) {
     const existing = await prisma.category.findFirst({
-      where: { OR: [{ name: data.name }, { slug }] },
+      where: { OR: [{ name: data.name }, { slug: data.slug }] },
     });
     if (existing)
       throw new AppError(
@@ -42,20 +48,29 @@ export const categoryService = {
         "Category with the same name or slug already exists",
       );
 
-    return prisma.category.create({ data: { ...data, slug } });
+    return prisma.category.create({ data: { ...data, slug: data.slug } });
   },
 
-  async update(id: string, data: { name?: string; description?: string }) {
+  async createMany(items: CategoryCreateInput[]) {
+    const result = await prisma.category.createMany({
+      data: items,
+      skipDuplicates: true,
+    });
+
+    return { createdCount: result.count, attempted: items.length };
+  },
+
+  async update(
+    id: string,
+    data: { name?: string; description?: string; slug?: string },
+  ) {
     const category = await prisma.category.findUnique({ where: { id } });
     if (!category)
       throw new AppError(httpStatus.NOT_FOUND, "Category not found");
 
     return prisma.category.update({
       where: { id },
-      data: {
-        ...data,
-        ...(data.name ? { slug: slugify(data.name) } : {}),
-      },
+      data,
     });
   },
 

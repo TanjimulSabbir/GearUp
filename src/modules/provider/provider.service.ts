@@ -4,7 +4,6 @@ import { prisma } from "../../lib/prisma";
 import AppError from "../../utils/errors/app.error";
 import httpStatus from "http-status";
 
-
 const ALLOWED_TRANSITIONS: Record<RentalStatus, RentalStatus[]> = {
   PLACED: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["CANCELLED"],
@@ -16,19 +15,35 @@ const ALLOWED_TRANSITIONS: Record<RentalStatus, RentalStatus[]> = {
 };
 
 export const providerServices = {
-  async createGearItem(
+  async createBulkGearItems(
     providerId: string,
-    payload: Prisma.GearItemUncheckedCreateInput,
+    payload: Prisma.GearItemUncheckedCreateInput[],
   ) {
-    const category = await prisma.category.findUnique({
-      where: { id: payload.categoryId },
+    const categoryIds = [...new Set(payload.map((item) => item.categoryId))];
+
+    const categories = await prisma.category.findMany({
+      where: {
+        id: {
+          in: categoryIds,
+        },
+      },
+      select: {
+        id: true,
+      },
     });
-    if (!category) {
-      throw new AppError(httpStatus.BAD_REQUEST, "Category not found.");
+
+    if (categories.length !== categoryIds.length) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "One or more categories not found.",
+      );
     }
 
-    return prisma.gearItem.create({
-      data: { ...payload, providerId },
+    return prisma.gearItem.createMany({
+      data: payload.map((item) => ({
+        ...item,
+        providerId,
+      })),
     });
   },
 

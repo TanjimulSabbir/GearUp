@@ -6,7 +6,7 @@ import httpStatus from "http-status";
 
 export const providerController = {
   createGearItem: catchAsync(async (req: Request, res: Response) => {
-    const data = await providerServices.createGearItem(
+    const data = await providerServices.createBulkGearItems(
       req.user?.id as string,
       req.body,
     );
