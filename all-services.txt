@@ -1,0 +1,1216 @@
+=== src/modules/category/category.service.ts ===
+import httpStatus from "http-status";
+import { CategoryCreateInput } from "../../../generated/prisma/models";
+import { prisma } from "../../lib/prisma";
+import AppError from "../../utils/errors/app.error";
+
+export const categoryService = {
+  async getAll(query: any) {
+    const limit = Number(query.limit ?? 10);
+    const page = Number(query.page ?? 1);
+    const skip = (page - 1) * limit;
+    const sortBy = query.sortBy ?? "createdAt";
+    const sortOrder = query.sortOrder ?? "desc";
+
+    const [categories, totalCategories] = await Promise.all([
+      prisma.category.findMany({
+        orderBy: { [sortBy]: sortOrder },
+        skip,
+        take: limit,
+      }),
+      prisma.category.count(),
+    ]);
+
+    return {
+      items: categories,
+      meta: {
+        page,
+        limit,
+        total: totalCategories,
+        totalPages: Math.ceil(totalCategories / limit),
+      },
+    };
+  },
+
+  async create(data: CategoryCreateInput[]) {
+    if (Array.isArray(data)) {
+      return this.createMany(data);
+    }
+    return this.createOne(data);
+  },
+
+  async createOne(data: CategoryCreateInput) {
+    const existing = await prisma.category.findFirst({
+      where: { OR: [{ name: data.name }, { slug: data.slug }] },
+    });
+    if (existing)
+      throw new AppError(
+        409,
+        "Category with the same name or slug already exists",
+      );
+
+    return prisma.category.create({ data: { ...data, slug: data.slug } });
+  },
+
+  async createMany(items: CategoryCreateInput[]) {
+    const result = await prisma.category.createMany({
+      data: items,
+      skipDuplicates: true,
+    });
+
+    return { createdCount: result.count, attempted: items.length };
+  },
+
+  async update(
+    id: string,
+    data: { name?: string; description?: string; slug?: string },
+  ) {
+    const category = await prisma.category.findUnique({ where: { id } });
+    if (!category)
+      throw new AppError(httpStatus.NOT_FOUND, "Category not found");
+
+    return prisma.category.update({
+      where: { id },
+      data,
+    });
+  },
+
+  async remove(id: string) {
+    const category = await prisma.category.findUnique({ where: { id } });
+    if (!category)
+      throw new AppError(httpStatus.NOT_FOUND, "Category not found");
+
+    const gearCount = await prisma.gearItem.count({
+      where: { categoryId: id },
+    });
+    if (gearCount > 0) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "Cannot delete category with associated gear items",
+      );
+    }
+
+    return await prisma.category.delete({ where: { id } });
+  },
+};
+
+=== src/modules/user/user.service.ts ===
+import bcrypt from "bcryptjs";
+import { prisma } from "../../lib/prisma";
+import AppError from "../../utils/errors/app.error";
+import { UserRegisterSchemaType } from "./user.validation";
+import httpStatus from "http-status";
+import config from "../../config";
+
+export const userService = {
+  async createUser(payload: UserRegisterSchemaType) {
+    const { email, password } = payload;
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+
+    if (existingUser) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "User already exists with this email",
+        { email },
+      );
+    }
+    const hashedPassword = await bcrypt.hash(
+      password,
+      Number(config.bcrypt_salt_rounds),
+    );
+    const user = await prisma.user.create({
+      data: { ...payload, password: hashedPassword },
+    });
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    };
+  },
+};
+
+=== src/modules/rental/rental.service.ts ===
+import httpStatus from "http-status";
+import { prisma } from "../../lib/prisma";
+import AppError from "../../utils/errors/app.error";
+import { expireStaleReservations } from "./rental.utils";
+
+interface CreateRentalInput {
+  startDate: Date;
+  endDate: Date;
+  items: { gearItemId: string; quantity: number }[];
+}
+
+interface RentalItemCreateData {
+  gearItemId: string;
+  quantity: number;
+  pricePerDay: number;
+  days: number;
+}
+
+function daysBetween(start: Date, end: Date) {
+  const ms = end.getTime() - start.getTime();
+  return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+}
+
+export const rentalService = {
+ async create(customerId: string, input: CreateRentalInput) {
+    const days = daysBetween(input.startDate, input.endDate);
+
+    return prisma.$transaction(async (tx) => {
+      let totalAmount = 0;
+      const rentalItemsData: RentalItemCreateData[] = [];
+
+      for (const item of input.items) {
+        let gear = await tx.gearItem.findFirst({
+          where: { id: item.gearItemId, isAvailable: true },
+        });
+        if (!gear) {
+          throw new AppError(
+            httpStatus.NOT_FOUND,
+            `Gear item ${item.gearItemId} not found or unavailable.`,
+          );
+        }
+
+        // On-demand fallback: not enough stock? try freeing stale reservations
+        // for this specific gear item before giving up.
+        if (gear.stock < item.quantity) {
+          await expireStaleReservations(tx, item.gearItemId);
+          gear = await tx.gearItem.findUnique({ where: { id: item.gearItemId } });
+        }
+
+        if (!gear || gear.stock < item.quantity) {
+          throw new AppError(
+            httpStatus.CONFLICT,
+            `"${gear?.name ?? "Item"}" is not available in the requested quantity. Available: ${gear?.stock ?? 0}`,
+          );
+        }
+
+        totalAmount += gear.rentalPrice * item.quantity * days;
+
+        rentalItemsData.push({
+          gearItemId: gear.id,
+          quantity: item.quantity,
+          pricePerDay: gear.rentalPrice,
+          days,
+        });
+
+        await tx.gearItem.update({
+          where: { id: gear.id },
+          data: { stock: { decrement: item.quantity } },
+        });
+      }
+
+      return tx.rentalOrder.create({
+        data: {
+          customerId,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          totalAmount,
+          rentalItems: { create: rentalItemsData },
+        },
+        include: {
+          rentalItems: {
+            include: { gearItem: { select: { id: true, name: true, image: true } } },
+          },
+        },
+      });
+    });
+  },
+
+  async requestReturn(customerId: string, orderId: string) {
+    const order = await prisma.rentalOrder.findUnique({
+      where: { id: orderId },
+      include: { payments: true },
+    });
+
+    if (!order) {
+      throw new AppError(httpStatus.NOT_FOUND, "Rental order not found.");
+    }
+
+    if (order.customerId !== customerId) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You can only request a return on your own orders.",
+      );
+    }
+
+    if (order.status !== "PICKED_UP") {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "You can only request a return for gear that has been picked up.",
+      );
+    }
+
+    const hasCompletedPayment = order.payments.some(
+      (p) => p.status === "COMPLETED",
+    );
+    if (!hasCompletedPayment) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "This order must be fully paid before a return can be requested.",
+      );
+    }
+
+    if (order.returnRequested) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "A return has already been requested for this order.",
+      );
+    }
+
+    return prisma.rentalOrder.update({
+      where: { id: orderId },
+      data: {
+        returnRequested: true,
+        returnRequestedAt: new Date(),
+      },
+    });
+  },
+
+async releaseStock(orderId: string) {
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.rentalOrder.findUnique({
+      where: { id: orderId },
+      include: { rentalItems: true },
+    });
+    if (!order) return null;
+    if (order.status !== "CONFIRMED") return order;
+
+    await Promise.all(
+      order.rentalItems.map((item) =>
+        tx.gearItem.update({
+          where: { id: item.gearItemId },
+          data: { stock: { increment: item.quantity } },
+        }),
+      ),
+    );
+
+    return tx.rentalOrder.update({
+      where: { id: orderId },
+      data: { status: "PAYMENT_FAILED" },
+    });
+  });
+},
+
+  async getMine(customerId: string) {
+    return prisma.rentalOrder.findMany({
+      where: { customerId },
+      include: {
+        rentalItems: {
+          include: {
+            gearItem: { select: { id: true, name: true, image: true } },
+          },
+        },
+        payments: {
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            method: true,
+            paidAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
+  async getById(requesterId: string, role: string, orderId: string) {
+    const order = await prisma.rentalOrder.findUnique({
+      where: { id: orderId },
+      include: {
+        rentalItems: { include: { gearItem: true } },
+        payments: true,
+        customer: { select: { id: true, name: true, email: true } },
+      },
+    });
+    if (!order) {
+      throw new AppError(httpStatus.NOT_FOUND, "Rental order not found.");
+    }
+
+    const isOwner = order.customerId === requesterId;
+    const isAdmin = role === "ADMIN";
+    const isProviderOfItem = order.rentalItems.some(
+      (item) => item.gearItem.providerId === requesterId,
+    );
+
+    if (!isOwner && !isAdmin && !isProviderOfItem) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You do not have access to this rental order.",
+      );
+    }
+
+    return order;
+  },
+
+  async cancel(customerId: string, orderId: string) {
+    const order = await prisma.rentalOrder.findUnique({
+      where: { id: orderId },
+      include: { rentalItems: true },
+    });
+    if (!order) {
+      throw new AppError(httpStatus.NOT_FOUND, "Rental order not found.");
+    }
+    if (order.customerId !== customerId) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You can only cancel your own orders.",
+      );
+    }
+    if (!["PLACED", "CONFIRMED"].includes(order.status)) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Order in status ${order.status} cannot be cancelled.`,
+      );
+    }
+
+    return prisma.$transaction(async (tx) => {
+      await Promise.all(
+        order.rentalItems.map((item) =>
+          tx.gearItem.update({
+            where: { id: item.gearItemId },
+            data: { stock: { increment: item.quantity } },
+          }),
+        ),
+      );
+
+      return tx.rentalOrder.update({
+        where: { id: orderId },
+        data: { status: "CANCELLED" },
+      });
+    });
+  },
+};
+
+=== src/modules/gear/gear.service.ts ===
+import httpStatus from "http-status";
+import { Prisma } from "../../../generated/prisma/client";
+import { prisma } from "../../lib/prisma";
+import AppError from "../../utils/errors/app.error";
+import { TGetAllGearQuery } from "./gear.validation";
+
+export const gearServices = {
+  async getAllGear(query: TGetAllGearQuery) {
+    const {
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      search,
+      categoryId,
+      brand,
+      condition,
+      minPrice,
+      maxPrice,
+      isAvailable,
+    } = query;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.GearItemWhereInput = {};
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+        { brand: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    if (categoryId) where.categoryId = categoryId;
+    if (brand) where.brand = { equals: brand, mode: "insensitive" };
+    if (condition) where.condition = condition;
+
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      where.rentalPrice = {};
+      if (minPrice !== undefined) where.rentalPrice.gte = minPrice;
+      if (maxPrice !== undefined) where.rentalPrice.lte = maxPrice;
+    }
+
+    // Public browse defaults to available-only unless explicitly overridden
+    where.isAvailable =
+      isAvailable === undefined ? true : isAvailable === "true";
+
+    const [items, total] = await Promise.all([
+      prisma.gearItem.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { [sortBy]: sortOrder },
+        include: {
+          category: { select: { id: true, name: true, slug: true } },
+          provider: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      prisma.gearItem.count({ where }),
+    ]);
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  },
+
+  async getGearById(id: string) {
+    const result = await prisma.gearItem.findUnique({
+      where: { id },
+      include: {
+        category: { select: { id: true, name: true, slug: true } },
+        provider: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    if (!result) {
+      throw new AppError(httpStatus.NOT_FOUND, "Gear item not found.");
+    }
+
+    return result;
+  },
+};
+
+=== src/modules/provider/provider.service.ts ===
+import { Prisma } from "../../../generated/prisma/client";
+import { RentalStatus } from "../../../generated/prisma/enums";
+import { prisma } from "../../lib/prisma";
+import AppError from "../../utils/errors/app.error";
+import httpStatus from "http-status";
+
+const ALLOWED_TRANSITIONS: Record<RentalStatus, RentalStatus[]> = {
+  PLACED: ["CONFIRMED", "CANCELLED"],
+  CONFIRMED: ["CANCELLED"],
+  PAID: ["PICKED_UP"],
+  PICKED_UP: ["RETURNED"],
+  RETURNED: [],
+  CANCELLED: [],
+  PAYMENT_FAILED: [],
+};
+
+export const providerServices = {
+  async createBulkGearItems(
+    providerId: string,
+    payload: Prisma.GearItemUncheckedCreateInput[],
+  ) {
+    const categoryIds = [...new Set(payload.map((item) => item.categoryId))];
+
+    const categories = await prisma.category.findMany({
+      where: {
+        id: {
+          in: categoryIds,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (categories.length !== categoryIds.length) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "One or more categories not found.",
+      );
+    }
+
+    return prisma.gearItem.createMany({
+      data: payload.map((item) => ({
+        ...item,
+        providerId,
+      })),
+    });
+  },
+
+  async getMyGear(providerId: string) {
+    return prisma.gearItem.findMany({
+      where: { providerId },
+      include: { category: { select: { id: true, name: true, slug: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
+  async updateGear(
+    providerId: string,
+    gearId: string,
+    data: Prisma.GearItemUncheckedUpdateManyInput,
+  ) {
+    const gear = await prisma.gearItem.findUnique({ where: { id: gearId } });
+    if (!gear) {
+      throw new AppError(httpStatus.NOT_FOUND, "Gear item not found.");
+    }
+
+    if (gear.providerId !== providerId) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You do not own this gear item.",
+      );
+    }
+
+    if (data.categoryId) {
+      const category = await prisma.category.findUnique({
+        where: { id: data.categoryId as string },
+      });
+
+      if (!category) {
+        throw new AppError(httpStatus.BAD_REQUEST, "Invalid category.");
+      }
+    }
+
+    return prisma.gearItem.update({
+      where: { id: gearId },
+      data,
+      include: {
+        category: { select: { id: true, name: true, slug: true } },
+        provider: { select: { id: true, name: true, email: true } },
+      },
+    });
+  },
+
+  async removeGear(providerId: string, gearId: string) {
+    const gear = await prisma.gearItem.findUnique({ where: { id: gearId } });
+    if (!gear)
+      throw new AppError(httpStatus.BAD_REQUEST, "Gear item not found");
+    if (gear.providerId !== providerId) {
+      throw new AppError(httpStatus.FORBIDDEN, "You do not own this gear item");
+    }
+
+    const activeOrders = await prisma.rentalItem.count({
+      where: {
+        gearItemId: gearId,
+        rentalOrder: {
+          status: { in: ["PLACED", "CONFIRMED", "PAID", "PICKED_UP"] },
+        },
+      },
+    });
+    if (activeOrders > 0) {
+      return prisma.gearItem.update({
+        where: { id: gearId },
+        data: { isAvailable: false },
+      });
+    }
+
+    await prisma.gearItem.delete({ where: { id: gearId } });
+    return null;
+  },
+
+  async getMyOrders(providerId: string) {
+    return prisma.rentalOrder.findMany({
+      where: { rentalItems: { some: { gearItem: { providerId } } } },
+      include: {
+        customer: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
+        rentalItems: {
+          where: { gearItem: { providerId } },
+          include: {
+            gearItem: { select: { id: true, name: true, image: true } },
+          },
+        },
+        payments: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
+  async updateOrderStatus(
+    providerId: string,
+    orderId: string,
+    nextStatus: RentalStatus,
+  ) {
+    const order = await prisma.rentalOrder.findUnique({
+      where: { id: orderId },
+      include: { rentalItems: true },
+    });
+    if (!order) throw new AppError(httpStatus.NOT_FOUND, "Order not found");
+
+    const providerItems = await prisma.rentalItem.findMany({
+      where: { rentalOrderId: orderId, gearItem: { providerId } },
+    });
+    if (providerItems.length === 0) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You do not have any gear in this order",
+      );
+    }
+
+    const allowed = ALLOWED_TRANSITIONS[order.status] ?? [];
+    if (!allowed.includes(nextStatus)) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Cannot transition order from ${order.status} to ${nextStatus}.`,
+      );
+    }
+
+    if (nextStatus === "CANCELLED" || nextStatus === "RETURNED") {
+      await prisma.$transaction(
+        order.rentalItems.map((item) =>
+          prisma.gearItem.update({
+            where: { id: item.gearItemId },
+            data: { stock: { increment: item.quantity } },
+          }),
+        ),
+      );
+    }
+
+    return prisma.rentalOrder.update({
+      where: { id: orderId },
+      data: { status: nextStatus },
+      include: {
+        rentalItems: true,
+        customer: { select: { id: true, name: true } },
+      },
+    });
+  },
+};
+
+=== src/modules/review/review.service.ts ===
+import { prisma } from "../../lib/prisma";
+import AppError from "../../utils/errors/app.error";
+import httpStatus from "http-status";
+
+export const reviewService = {
+  async create(
+    userId: string,
+    input: {
+      gearItemId: string;
+      rentalOrderId: string;
+      rating: number;
+      comment: string;
+    },
+  ) {
+    const order = await prisma.rentalOrder.findUnique({
+      where: { id: input.rentalOrderId },
+      include: { rentalItems: true },
+    });
+    if (!order)
+      throw new AppError(httpStatus.NOT_FOUND, "Rental order not found");
+    if (order.customerId !== userId) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You can only review your own rentals",
+      );
+    }
+    if (order.status !== "RETURNED") {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "You can only leave a review after the gear has been returned",
+      );
+    }
+
+    const rentedThisItem = order.rentalItems.some(
+      (i) => i.gearItemId === input.gearItemId,
+    );
+    if (!rentedThisItem) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "This gear item was not part of the given rental order",
+      );
+    }
+
+    const existing = await prisma.review.findUnique({
+      where: {
+        userId_gearItemId_rentalOrderId: {
+          userId,
+          gearItemId: input.gearItemId,
+          rentalOrderId: input.rentalOrderId,
+        },
+      },
+    });
+    if (existing)
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "You already reviewed this gear item for this rental",
+      );
+
+    return prisma.review.create({
+      data: {
+        userId,
+        gearItemId: input.gearItemId,
+        rentalOrderId: input.rentalOrderId,
+        rating: input.rating,
+        comment: input.comment,
+      },
+    });
+  },
+};
+
+=== src/modules/payment/payment.service.ts ===
+import crypto from "crypto";
+import { prisma } from "../../lib/prisma";
+import { stripe } from "../../lib/stripe";
+import AppError from "../../utils/errors/app.error";
+import { rentalService } from "../rental/rental.service";
+import config from "../../config";
+import { Stripe } from "stripe";
+
+export const paymentService = {
+  async createCheckoutSession(customerId: string, rentalOrderId: string) {
+    const order = await prisma.rentalOrder.findUnique({
+      where: { id: rentalOrderId },
+      include: { rentalItems: { include: { gearItem: true } } },
+    });
+
+    if (!order) throw new AppError(404, "Rental order not found");
+    if (order.customerId !== customerId) {
+      throw new AppError(403, "You do not own this rental order", {
+        message: "You do not own this rental order",
+        description:
+          "The rental order you are trying to pay for does not belong to your account. Please check the order ID and ensure you are logged in with the correct account.",
+        statusCode: 403,
+      });
+    }
+    if (order.status === "RETURNED") {
+      throw new AppError(400, "This rental order has already been returned", {
+        message: "This rental order has already been returned",
+        description:
+          "The rental order you are trying to pay for has already been returned. No further payment is required for this order. If you need this order again, please create a new rental order.",
+        statusCode: 400,
+      });
+    }
+    if (order.status === "CANCELLED") {
+      throw new AppError(400, "This rental order has already been cancelled", {
+        message: "This rental order has already been cancelled",
+        description:
+          "The rental order you are trying to pay for has already been cancelled. No further payment is required for this order.",
+        statusCode: 400,
+      });
+    }
+    if (order.status === "PAID") {
+      throw new AppError(400, "This rental order has already been paid", {
+        message: "This rental order has already been paid",
+        description:
+          "The rental order you are trying to pay for has already been marked as paid. No further payment is required for this order.",
+        statusCode: 400,
+      });
+    }
+
+    // Payment can be attempted from CONFIRMED (first try) or PAYMENT_FAILED (retry).
+    if (order.status !== "CONFIRMED" && order.status !== "PAYMENT_FAILED") {
+      throw new AppError(
+        400,
+        `Order must be CONFIRMED by the provider before payment. Current status: ${order.status}`,
+        {
+          message: `Order must be CONFIRMED by the provider before payment. Current status: ${order.status}`,
+          description: `The rental order you are trying to pay for must be CONFIRMED by the provider before payment. Current status: ${order.status}`,
+          statusCode: 400,
+        },
+      );
+    }
+
+    // Retry window: 24 hours from the ORIGINAL order creation, not from the
+    // failed attempt. Past this, the order is dead — auto-cancel and restock.
+    const RETRY_WINDOW_HOURS = 24;
+    const cutoff = new Date(Date.now() - RETRY_WINDOW_HOURS * 60 * 60 * 1000);
+    if (order.createdAt <= cutoff) {
+      await prisma.$transaction(async (tx) => {
+        const { count } = await tx.rentalOrder.updateMany({
+          where: {
+            id: order.id,
+            status: { in: ["CONFIRMED", "PAYMENT_FAILED"] },
+          },
+          data: { status: "CANCELLED" },
+        });
+        if (count > 0) {
+          await Promise.all(
+            order.rentalItems.map((item) =>
+              tx.gearItem.update({
+                where: { id: item.gearItemId },
+                data: { stock: { increment: item.quantity } },
+              }),
+            ),
+          );
+        }
+      });
+
+      throw new AppError(
+        400,
+        "This order has expired due to non-payment within 24 hours and has been cancelled.",
+        {
+          message:
+            "This order has expired due to non-payment within 24 hours and has been cancelled.",
+          description:
+            "Payment was not completed within 24 hours of placing this order, so it was automatically cancelled and the gear released back into stock. Please place a new order to try again.",
+          statusCode: 400,
+        },
+      );
+    }
+
+    const existingPending = await prisma.payment.findFirst({
+      where: { rentalOrderId, status: "PENDING" },
+    });
+
+    if (existingPending?.stripeSessionId) {
+      const session = await stripe.checkout.sessions.retrieve(
+        existingPending.stripeSessionId,
+      );
+      if (session.status === "open") {
+        return {
+          url: session.url,
+          sessionId: session.id,
+          paymentId: existingPending.id,
+        };
+      }
+    }
+
+    const transactionId = `TXN-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      customer_email: undefined,
+      line_items: order.rentalItems.map((item) => ({
+        price_data: {
+          currency: "usd",
+          product_data: { name: item.gearItem.name },
+          unit_amount: Math.round(item.pricePerDay * 100),
+        },
+        quantity: item.quantity * item.days,
+      })),
+      success_url: `${config.frontend_url}?payment=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${config.frontend_url}?payment=false`,
+      metadata: { rentalOrderId, transactionId },
+    });
+
+    const payment = await prisma.payment.create({
+      data: {
+        transactionId,
+        amount: order.totalAmount,
+        method: "STRIPE",
+        status: "PENDING",
+        stripeSessionId: session.id,
+        rentalOrderId,
+      },
+    });
+
+    return { url: session.url, sessionId: session.id, paymentId: payment.id };
+  },
+
+  async markCompleted(session: Stripe.Checkout.Session) {
+    const payment = await prisma.payment.findUnique({
+      where: { stripeSessionId: session.id },
+    });
+
+    if (!payment) return null;
+    if (payment.status === "COMPLETED") return payment;
+
+    const [updatedPayment] = await prisma.$transaction([
+      prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: "COMPLETED",
+          paidAt: new Date(),
+          stripePaymentIntentId:
+            (session.payment_intent as string | null) ?? undefined,
+        },
+      }),
+      prisma.rentalOrder.update({
+        where: { id: payment.rentalOrderId },
+        data: { status: "PAID" },
+      }),
+    ]);
+
+    return updatedPayment;
+  },
+
+  async markFailed(session: Stripe.Checkout.Session) {
+    const payment = await prisma.payment.findUnique({
+      where: { stripeSessionId: session.id },
+    });
+
+    if (!payment || payment.status === "COMPLETED") return payment;
+
+    const updated = await prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: "FAILED" },
+    });
+
+    await rentalService.releaseStock(payment.rentalOrderId);
+
+    return updated;
+  },
+
+  async confirmBySessionId(sessionId: string, customerId: string) {
+    const payment = await prisma.payment.findUnique({
+      where: { stripeSessionId: sessionId },
+      include: { rentalOrder: true },
+    });
+    if (!payment) throw new AppError(404, "Checkout session not found");
+    if (payment.rentalOrder.customerId !== customerId) {
+      throw new AppError(403, "You do not have access to this payment");
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (!session) throw new AppError(404, "Checkout session not found");
+
+    if (session.payment_status === "paid") {
+      return this.markCompleted(session);
+    }
+    if (session.status === "expired") {
+      return this.markFailed(session);
+    }
+
+    return payment;
+  },
+
+  async getMine(customerId: string) {
+    return prisma.payment.findMany({
+      where: { rentalOrder: { customerId } },
+      include: {
+        rentalOrder: { select: { id: true, status: true, totalAmount: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
+  async getById(customerId: string, role: string, paymentId: string) {
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: { rentalOrder: true },
+    });
+    if (!payment) throw new AppError(404, "Payment not found");
+
+    if (payment.rentalOrder.customerId !== customerId && role !== "ADMIN") {
+      throw new AppError(403, "You do not have access to this payment");
+    }
+    return payment;
+  },
+};
+
+=== src/modules/admin/admin.service.ts ===
+import { AccountStatus } from "../../../generated/prisma/enums";
+import { prisma } from "../../lib/prisma";
+import AppError from "../../utils/errors/app.error";
+import httpStatus from "http-status";
+
+export const adminService = {
+  async getAllUsers() {
+    return prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        phone: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
+  async updateUserStatus(userId: string, accountStatus: AccountStatus) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user)
+      throw new AppError(
+        httpStatus.NOT_FOUND,
+        "Your account has been not found. Please contact support.",
+      );
+
+    if (user.role === "ADMIN") {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You cannot block or unblock an admin account.",
+      );
+    }
+
+    return await prisma.user.update({
+      where: { id: userId },
+      data: { accountStatus, isActive: accountStatus === "ACTIVE" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        accountStatus: true,
+      },
+    });
+  },
+
+  async getAllGear(query: any) {
+    const limit = Number(query.limit ?? 10);
+    const page = Number(query.page ?? 1);
+    const skip = (page - 1) * limit;
+    const sortBy = query.sortBy ?? "createdAt";
+    const sortOrder = query.sortOrder ?? "desc";
+
+    const [items, totalPostCount] = await Promise.all([
+      prisma.gearItem.findMany({
+        skip,
+        take: limit,
+        include: {
+          category: { select: { id: true, name: true } },
+          provider: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: {
+          [sortBy]: sortOrder,
+        },
+      }),
+      prisma.gearItem.count(),
+    ]);
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        total: totalPostCount,
+        totalPages: Math.ceil(totalPostCount / limit),
+      },
+    };
+  },
+
+  async getAllRentals(query?: any) {
+    const limit = Number(query.limit ?? 10);
+    const page = Number(query.page ?? 1);
+    const skip = (page - 1) * limit;
+    const sortBy = query.sortBy ?? "createdAt";
+    const sortOrder = query.sortOrder ?? "desc";
+
+    const [rentals, totalRentals] = await Promise.all([
+      prisma.rentalOrder.findMany({
+        skip,
+        take: limit,
+        include: {
+          customer: { select: { id: true, name: true, email: true } },
+          items: {
+            include: { gearItem: { select: { id: true, name: true } } },
+          },
+          payments: {
+            select: { id: true, status: true, amount: true, method: true },
+          },
+        },
+
+        orderBy: {
+          [sortBy]: sortOrder,
+        },
+      }),
+
+      prisma.rentalOrder.count(),
+    ]);
+
+    return {
+      rentals,
+      meta: {
+        page,
+        limit,
+        total: totalRentals,
+        totalPages: Math.ceil(totalRentals / limit),
+      },
+    };
+  },
+};
+
+=== src/modules/auth/auth.service.ts ===
+import bcrypt from "bcryptjs";
+import httpStatus from "http-status";
+import { JwtPayload, SignOptions } from "jsonwebtoken";
+import config from "../../config/index";
+import { prisma } from "../../lib/prisma";
+import AppError from "../../utils/errors/app.error";
+import { jwtUtils } from "../../utils/jwt";
+import { ILoginUser } from "./auth.interface";
+
+const loginUser = async (payload: ILoginUser) => {
+  const { email, password } = payload;
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid email or password");
+  }
+  const isPasswordMatched = await bcrypt.compare(password, user.password);
+
+  if (!isPasswordMatched) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid email or password");
+  }
+
+  if (user.accountStatus === "BANNED") {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "Your account has been banned. Please contact support. Support email: support@gearup.com",
+    );
+  }
+  
+  const jwtPayload = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+  };
+
+  const accessToken = jwtUtils.createToken(
+    jwtPayload,
+    config.jwt_access_secret,
+    config.jwt_access_expires_in as SignOptions,
+  );
+
+  const refreshToken = jwtUtils.createToken(
+    jwtPayload,
+    config.jwt_refresh_secret,
+    config.jwt_refresh_expires_in as SignOptions,
+  );
+
+  return {
+    accessToken,
+    refreshToken,
+  };
+};
+const refreshToken = async (refreshToken: string) => {
+  const verifiedRefreshToken = jwtUtils.verifyToken(
+    refreshToken,
+    config.jwt_refresh_secret,
+  );
+
+  if (!verifiedRefreshToken.success) {
+    throw new AppError(httpStatus.UNAUTHORIZED, verifiedRefreshToken.error);
+  }
+
+  const { id } = verifiedRefreshToken.data as JwtPayload;
+
+  const user = await prisma.user.findUniqueOrThrow({
+    where: {
+      id,
+    },
+  });
+
+  if (user.accountStatus === "BANNED") {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "Your account has been banned. Please contact support. Support email: support@gearup.com",
+    );
+  }
+
+  const jwtPayload = {
+    id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+  };
+
+  const accessToken = jwtUtils.createToken(
+    jwtPayload,
+    config.jwt_access_secret,
+    config.jwt_access_expires_in as SignOptions,
+  );
+
+  return { accessToken };
+};
+
+export const authService = {
+  loginUser,
+  refreshToken,
+};
+

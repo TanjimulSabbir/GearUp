@@ -11,7 +11,7 @@ export const adminService = {
         name: true,
         email: true,
         role: true,
-        status: true,
+        accountStatus: true,
         phone: true,
         createdAt: true,
       },
@@ -93,7 +93,7 @@ export const adminService = {
         take: limit,
         include: {
           customer: { select: { id: true, name: true, email: true } },
-          items: {
+          rentalItems: {
             include: { gearItem: { select: { id: true, name: true } } },
           },
           payments: {

@@ -14,7 +14,7 @@ router.use(auth("PROVIDER"));
 
 router.post(
   "/gear",
-  // validate(createGearItemSchema),
+  validate(createGearItemSchema),
   providerController.createGearItem,
 );
 

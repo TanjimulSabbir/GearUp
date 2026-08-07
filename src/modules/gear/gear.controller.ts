@@ -19,7 +19,7 @@ export const gearController = {
   }),
 
   getGearById: catchAsync(async (req: Request, res: Response) => {
-    const data = await gearServices.getGearById(req.params.id);
+    const data = await gearServices.getGearById(req.params.id as string);
     sendResponse(res, {
       success: true,
       statusCode: httpStatus.OK,
@@ -27,6 +27,4 @@ export const gearController = {
       data,
     });
   }),
-
-
 };

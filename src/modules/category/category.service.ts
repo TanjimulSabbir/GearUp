@@ -31,7 +31,7 @@ export const categoryService = {
     };
   },
 
-  async create(data: CategoryCreateInput[]) {
+  async create(data: CategoryCreateInput | CategoryCreateInput[]) {
     if (Array.isArray(data)) {
       return this.createMany(data);
     }
@@ -57,7 +57,11 @@ export const categoryService = {
       skipDuplicates: true,
     });
 
-    return { createdCount: result.count, attempted: items.length };
+    return {
+      createdCount: result.count,
+      attempted: items.length,
+      data: result,
+    };
   },
 
   async update(

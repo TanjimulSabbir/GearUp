@@ -1,10 +1,9 @@
 import crypto from "crypto";
+import { Stripe } from "stripe";
+import config from "../../config";
 import { prisma } from "../../lib/prisma";
 import { stripe } from "../../lib/stripe";
 import AppError from "../../utils/errors/app.error";
-import { rentalService } from "../rental/rental.service";
-import config from "../../config";
-import { Stripe } from "stripe";
 
 export const paymentService = {
   async createCheckoutSession(customerId: string, rentalOrderId: string) {
@@ -30,7 +29,6 @@ export const paymentService = {
         statusCode: 400,
       });
     }
-
     if (order.status === "CANCELLED") {
       throw new AppError(400, "This rental order has already been cancelled", {
         message: "This rental order has already been cancelled",
@@ -39,7 +37,6 @@ export const paymentService = {
         statusCode: 400,
       });
     }
-
     if (order.status === "PAID") {
       throw new AppError(400, "This rental order has already been paid", {
         message: "This rental order has already been paid",
@@ -49,13 +46,50 @@ export const paymentService = {
       });
     }
 
-    if (order.status !== "CONFIRMED") {
+    const payableStatuses = ["CONFIRMED", "PAYMENT_FAILED"];
+    if (!payableStatuses.includes(order.status)) {
       throw new AppError(
         400,
         `Order must be CONFIRMED by the provider before payment. Current status: ${order.status}`,
         {
           message: `Order must be CONFIRMED by the provider before payment. Current status: ${order.status}`,
           description: `The rental order you are trying to pay for must be CONFIRMED by the provider before payment. Current status: ${order.status}`,
+          statusCode: 400,
+        },
+      );
+    }
+
+    const RETRY_WINDOW_HOURS = 24;
+    const cutoff = new Date(Date.now() - RETRY_WINDOW_HOURS * 60 * 60 * 1000);
+    if (order.createdAt <= cutoff) {
+      await prisma.$transaction(async (tx) => {
+        const { count } = await tx.rentalOrder.updateMany({
+          where: {
+            id: order.id,
+            status: { in: ["CONFIRMED", "PAYMENT_FAILED"] },
+          },
+          data: { status: "CANCELLED" },
+        });
+        if (count > 0) {
+          await Promise.all(
+            order.rentalItems.map((item) =>
+              tx.gearItem.update({
+                where: { id: item.gearItemId },
+                data: { stock: { increment: item.quantity } },
+              }),
+            ),
+          );
+        }
+      });
+
+      throw new AppError(
+        400,
+        "This order has expired due to non-payment within 24 hours and has been cancelled.",
+        {
+          message:
+            "This order has expired due to non-payment within 24 hours and has been cancelled.",
+          description:
+            "Payment was not completed within 24 hours of placing this order, so it was automatically cancelled and the gear released back into stock. Please place a new order to try again.",
           statusCode: 400,
         },
       );
@@ -75,6 +109,9 @@ export const paymentService = {
           sessionId: session.id,
           paymentId: existingPending.id,
         };
+      }
+      if (session.status === "expired") {
+        await this.markFailed(session);
       }
     }
 
@@ -138,23 +175,27 @@ export const paymentService = {
     return updatedPayment;
   },
 
-  async markFailed(session: Stripe.Checkout.Session ) {
+  async markFailed(session: Stripe.Checkout.Session) {
     const payment = await prisma.payment.findUnique({
       where: { stripeSessionId: session.id },
     });
 
     if (!payment || payment.status === "COMPLETED") return payment;
 
-    const updated = await prisma.payment.update({
-      where: { id: payment.id },
-      data: { status: "FAILED" },
-    });
+    const [updatedPayment] = await prisma.$transaction([
+      prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: "FAILED" },
+      }),
+      prisma.rentalOrder.updateMany({
+        where: { id: payment.rentalOrderId, status: "CONFIRMED" },
+        data: { status: "PAYMENT_FAILED" },
+      }),
+    ]);
 
-    await rentalService.releaseStock(payment.rentalOrderId);
-
-    return updated;
+    return updatedPayment;
   },
-
+  
   async confirmBySessionId(sessionId: string, customerId: string) {
     const payment = await prisma.payment.findUnique({
       where: { stripeSessionId: sessionId },
@@ -172,7 +213,7 @@ export const paymentService = {
       return this.markCompleted(session);
     }
     if (session.status === "expired") {
-      return this.markFailed(session.id);
+      return this.markFailed(session);
     }
 
     return payment;

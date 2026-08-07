@@ -1,0 +1,229 @@
+=== src/modules/category/category.routes.ts ===
+import { Router } from "express";
+import { categoryController } from "./category.controller";
+
+const router = Router();
+
+router.get("/", categoryController.getAll);
+
+export const categoryRoutes = router;
+
+=== src/modules/user/user.routes.ts ===
+import { Router } from "express";
+import { validate } from "../../utils/errors/zod.error";
+import { userController } from "../user/user.controller";
+import { userRegisterSchema } from "./user.validation";
+
+const router = Router();
+
+router.post(
+  "/signup",
+  validate(userRegisterSchema),
+  userController.registerUser,
+);
+
+export const userRoutes = router;
+=== src/modules/rental/rental.routes.ts ===
+import { Router } from "express";
+import { rentalController } from "./rental.controller";
+import { auth } from "../../middlewares/auth";
+import { validate } from "../../utils/errors/zod.error";
+import {
+  createRentalSchema,
+  rentalIdParamSchema,
+  requestReturnSchema,
+} from "./rental.validation";
+
+const router = Router();
+
+router.post(
+  "/",
+  auth("CUSTOMER"),
+  validate(createRentalSchema),
+  rentalController.create,
+);
+router.get("/", auth("CUSTOMER"), rentalController.getMine);
+router.get(
+  "/:id",
+  auth("CUSTOMER", "PROVIDER", "ADMIN"),
+  validate(rentalIdParamSchema),
+  rentalController.getById,
+);
+router.patch(
+  "/:id/request-return",
+  auth("CUSTOMER"),
+  validate(requestReturnSchema),
+  rentalController.requestReturn,
+);
+router.patch(
+  "/:id/cancel",
+  auth("CUSTOMER"),
+  validate(rentalIdParamSchema),
+  rentalController.cancel,
+);
+
+export const rentalRoutes = router;
+
+=== src/modules/gear/gear.routes.ts ===
+import {Router} from "express";
+import { gearController } from "./gear.controller";
+
+const router = Router();
+
+router.get("/", gearController.getAllGear);
+
+router.get("/:gearId", gearController.getGearById);
+
+export const gearRoutes = router;
+
+=== src/modules/provider/provider.routes.ts ===
+import { Router } from "express";
+import { providerController } from "./provider.controller";
+import {
+  createGearItemSchema,
+  updateGearItemSchema,
+  updateOrderStatusSchema,
+} from "./provider.validation";
+import { auth } from "../../middlewares/auth";
+import { validate } from "../../utils/errors/zod.error";
+
+const router = Router();
+
+router.use(auth("PROVIDER"));
+
+router.post(
+  "/gear",
+  // validate(createGearItemSchema),
+  providerController.createGearItem,
+);
+
+router.get("/gear", providerController.getMyGear);
+
+router.put(
+  "/gear/:id",
+  validate(updateGearItemSchema),
+  providerController.updateGear,
+);
+
+router.delete("/gear/:id", providerController.removeGear);
+
+router.get("/orders", providerController.getMyOrders);
+router.patch(
+  "/orders/:id",
+  validate(updateOrderStatusSchema),
+  providerController.updateOrderStatus,
+);
+
+export const providerRoutes = router;
+
+=== src/modules/review/review.routes.ts ===
+import { Router } from "express";
+import { reviewController } from "./review.controller";
+import { createReviewSchema } from "./review.validation";
+import { auth } from "../../middlewares/auth";
+import { validate } from "../../utils/errors/zod.error";
+
+const router = Router();
+
+router.post(
+  "/",
+  auth("CUSTOMER"),
+  validate(createReviewSchema),
+  reviewController.create,
+);
+
+export const reviewRoutes = router;
+
+=== src/modules/payment/payment.routes.ts ===
+import { Router } from "express";
+import { auth } from "../../middlewares/auth";
+import { paymentController } from "./payment.controller";
+import {
+  createPaymentSchema,
+  paymentIdParamSchema,
+  confirmPaymentSchema,
+} from "./payment.validation";
+import { validate } from "../../utils/errors/zod.error";
+
+const router = Router();
+
+router.post(
+  "/create",
+  auth("CUSTOMER"),
+  validate(createPaymentSchema),
+  paymentController.create,
+);
+
+router.post(
+  "/confirm",
+  auth("CUSTOMER"),
+  validate(confirmPaymentSchema),
+  paymentController.confirmIsPaid,
+);
+
+router.get("/", auth("CUSTOMER"), paymentController.getMine);
+
+router.get(
+  "/:id",
+  auth("CUSTOMER", "ADMIN"),
+  validate(paymentIdParamSchema),
+  paymentController.getById,
+);
+
+router.post("/webhook", paymentController.webhook);
+
+export const paymentRoutes = router;
+=== src/modules/admin/admin.routes.ts ===
+import { Router } from "express";
+import { adminController } from "./admin.controller";
+import { updateUserStatusSchema } from "./admin.validation";
+import {
+  createCategorySchema,
+  updateCategorySchema,
+} from "../category/category.validation";
+import { auth } from "../../middlewares/auth";
+import { validate } from "../../utils/errors/zod.error";
+
+const router = Router();
+
+router.use(auth("ADMIN"));
+
+router.get("/users", adminController.getAllUsers);
+
+router.patch(
+  "/users/:id",
+  validate(updateUserStatusSchema),
+  adminController.updateUserStatus,
+);
+
+router.get("/gear", adminController.getAllGear);
+router.get("/rentals", adminController.getAllRentals);
+
+router.post(
+  "/categories",
+  validate(createCategorySchema),
+  adminController.createCategory,
+);
+router.put(
+  "/categories/:id",
+  validate(updateCategorySchema),
+  adminController.updateCategory,
+);
+router.delete("/categories/:id", adminController.deleteCategory);
+
+export const adminRoutes = router;
+
+=== src/modules/auth/auth.routes.ts ===
+import { Router } from "express";
+import { authController } from "./auth.controller";
+import { validate } from "../../utils/errors/zod.error";
+import { loginSchema } from "./auth.validation";
+
+const router = Router();
+
+router.post("/login", validate(loginSchema), authController.loginUser)
+
+router.post("/refresh-token", authController.refreshToken)
+
+export const authRoutes = router;
+

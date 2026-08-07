@@ -1,0 +1,532 @@
+=== src/modules/category/category.controller.ts ===
+import { Request, Response } from "express";
+import { catchAsync } from "../../utils/catchAsync";
+import { sendResponse } from "../../utils/sendResponse";
+import { categoryService } from "./category.service";
+import httpStatus from "http-status";
+
+export const categoryController = {
+  getAll: catchAsync(async (req: Request, res: Response) => {
+    const categories = await categoryService.getAll(req.query);
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Categories fetched successfully",
+      data: categories,
+    });
+  }),
+};
+
+=== src/modules/user/user.controller.ts ===
+import { Request, Response } from "express";
+import httpStatus from "http-status";
+import { catchAsync } from "../../utils/catchAsync";
+import { sendResponse } from "../../utils/sendResponse";
+import { userService } from "./user.service";
+
+export const userController = {
+  registerUser: catchAsync(async (req: Request, res: Response) => {
+    const payload = req.body;
+    const { user } = await userService.createUser(payload);
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.CREATED,
+      message: "User created successfully",
+      data: user,
+    });
+  }),
+};
+
+
+=== src/modules/rental/rental.controller.ts ===
+import { Request, Response } from "express";
+import httpStatus from "http-status";
+import { catchAsync } from "../../utils/catchAsync";
+import { sendResponse } from "../../utils/sendResponse";
+import { rentalService } from "./rental.service";
+
+export const rentalController = {
+  create: catchAsync(async (req: Request, res: Response) => {
+    const order = await rentalService.create(req.user!.id, req.body);
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.CREATED,
+      message:
+        "Rental order created successfully. Waiting for provider confirmation before you can pay.",
+      data: order,
+    });
+  }),
+
+  requestReturn: catchAsync(async (req: Request, res: Response) => {
+    const order = await rentalService.requestReturn(
+      req.user!.id,
+      req.params.id as string,
+    );
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Return requested successfully",
+      data: order,
+    });
+  }),
+
+  getMine: catchAsync(async (req: Request, res: Response) => {
+    const orders = await rentalService.getMine(req.user!.id);
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Rental orders fetched successfully",
+      data: orders,
+    });
+  }),
+
+  getById: catchAsync(async (req: Request, res: Response) => {
+    const order = await rentalService.getById(
+      req.user!.id,
+      req.user!.role,
+      req.params.id as string,
+    );
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Rental order fetched successfully",
+      data: order,
+    });
+  }),
+
+  cancel: catchAsync(async (req: Request, res: Response) => {
+    const order = await rentalService.cancel(
+      req.user!.id,
+      req.params.id as string,
+    );
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Rental order cancelled successfully",
+      data: order,
+    });
+  }),
+};
+
+=== src/modules/gear/gear.controller.ts ===
+import { Request, Response } from "express";
+import httpStatus from "http-status";
+import { catchAsync } from "../../utils/catchAsync";
+
+import { sendResponse } from "../../utils/sendResponse";
+import { gearServices } from "./gear.service";
+import { TGetAllGearQuery } from "./gear.validation";
+
+
+export const gearController = {
+  getAllGear: catchAsync(async (req: Request, res: Response) => {
+    const data = await gearServices.getAllGear(req.query as unknown as TGetAllGearQuery);
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Gear items fetched successfully",
+      data,
+    });
+  }),
+
+  getGearById: catchAsync(async (req: Request, res: Response) => {
+    const data = await gearServices.getGearById(req.params.id);
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Gear item fetched successfully",
+      data,
+    });
+  }),
+
+
+};
+
+=== src/modules/provider/provider.controller.ts ===
+import { Request, Response } from "express";
+import { catchAsync } from "../../utils/catchAsync";
+import { sendResponse } from "../../utils/sendResponse";
+import { providerServices } from "./provider.service";
+import httpStatus from "http-status";
+
+export const providerController = {
+  createGearItem: catchAsync(async (req: Request, res: Response) => {
+    const data = await providerServices.createBulkGearItems(
+      req.user?.id as string,
+      req.body,
+    );
+
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Gear items created successfully",
+      data,
+    });
+  }),
+
+  getMyGear: catchAsync(async (req: Request, res: Response) => {
+    const data = await providerServices.getMyGear(req.user!.id);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Gear items fetched successfully",
+      data,
+    });
+  }),
+
+  updateGear: catchAsync(async (req: Request, res: Response) => {
+    const data = await providerServices.updateGear(
+      req.user!.id,
+      req.params.id as string,
+      req.body,
+    );
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Gear item updated successfully",
+      data,
+    });
+  }),
+
+  removeGear: catchAsync(async (req: Request, res: Response) => {
+    const data = await providerServices.removeGear(
+      req.user!.id,
+      req.params.id as string,
+    );
+
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Gear item removed successfully",
+      data,
+    });
+  }),
+
+  getMyOrders: catchAsync(async (req: Request, res: Response) => {
+    const data = await providerServices.getMyOrders(req.user!.id);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Gear orders fetched successfully",
+      data,
+    });
+  }),
+
+  updateOrderStatus: catchAsync(async (req: Request, res: Response) => {
+    const data = await providerServices.updateOrderStatus(
+      req.user!.id,
+      req.params.id as string,
+      req.body.status,
+    );
+
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Gear order status updated successfully",
+      data,
+    });
+  }),
+};
+
+=== src/modules/review/review.controller.ts ===
+import { Request, Response } from "express";
+import { catchAsync } from "../../utils/catchAsync";
+import { sendResponse } from "../../utils/sendResponse";
+import { reviewService } from "./review.service";
+
+export const reviewController = {
+  create: catchAsync(async (req: Request, res: Response) => {
+    const review = await reviewService.create(req.user!.id, req.body);
+    sendResponse(res, {
+      success: true,
+      statusCode: 201,
+      message: "Review created successfully",
+      data: review,
+    });
+  }),
+};
+
+=== src/modules/payment/payment.controller.ts ===
+import { Request, Response } from "express";
+import Stripe from "stripe";
+import { catchAsync } from "../../utils/catchAsync";
+import { sendResponse } from "../../utils/sendResponse";
+import { paymentService } from "./payment.service";
+import { stripe } from "../../lib/stripe";
+import config from "../../config";
+import AppError from "../../utils/errors/app.error";
+
+export const paymentController = {
+  create: catchAsync(async (req: Request, res: Response) => {
+    const result = await paymentService.createCheckoutSession(
+      req.user!.id,
+      req.body.rentalOrderId,
+    );
+    sendResponse(res, {
+      success: true,
+      statusCode: 201,
+      message: "Checkout session created",
+      data: result,
+    });
+  }),
+
+  // Client-side callback after Stripe redirects back with ?session_id=...
+  confirmIsPaid: catchAsync(async (req: Request, res: Response) => {
+    const sessionId = (req.body.sessionId || req.query.session_id) as string;
+    if (!sessionId) throw new AppError(400, "Missing session_id in request");
+    const payment = await paymentService.confirmBySessionId(
+      sessionId,
+      req.user!.id,
+    );
+    sendResponse(res, {
+      success: true,
+      statusCode: 201,
+      message: "checkout session confirmed",
+      data: payment,
+    });
+  }),
+
+  getMine: catchAsync(async (req: Request, res: Response) => {
+    const payments = await paymentService.getMine(req.user!.id);
+    sendResponse(res, {
+      success: true,
+      statusCode: 201,
+      message: "",
+      data: payments,
+    });
+  }),
+
+  getById: catchAsync(async (req: Request, res: Response) => {
+    const payment = await paymentService.getById(
+      req.user!.id,
+      req.user!.role,
+      req.params.id as string,
+    );
+    sendResponse(res, {
+      success: true,
+      statusCode: 201,
+      message: "Checkout session created",
+      data: payment,
+    });
+  }),
+
+  webhook: async (req: Request, res: Response) => {
+    const signature = req.headers["stripe-signature"] as string;
+    let event: Stripe.Event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body as Buffer,
+        signature,
+        config.stripe_webhook_secret,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return res.status(400).json({
+        success: false,
+        message: `Webhook signature verification failed: ${message}`,
+        errorDetails: { error: err instanceof Error ? err.stack : undefined },
+      });
+    }
+
+    if (!event) {
+      return res.status(400).json({
+        success: false,
+        message: "Webhook signature verification failed",
+      });
+    }
+
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await paymentService.markCompleted(session);
+        break;
+      }
+      case "checkout.session.async_payment_failed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await paymentService.markFailed(session);
+        break;
+      }
+      case "checkout.session.expired": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await paymentService.markFailed(session);
+        break;
+      }
+      default:
+        break;
+    }
+
+    res.json({ received: true });
+  },
+};
+=== src/modules/admin/admin.controller.ts ===
+import { Request, Response } from "express";
+import httpStatus from "http-status";
+import { catchAsync } from "../../utils/catchAsync";
+import { sendResponse } from "../../utils/sendResponse";
+import { adminService } from "./admin.service";
+import { categoryService } from "../category/category.service";
+
+export const adminController = {
+  getAllUsers: catchAsync(async (req: Request, res: Response) => {
+    const users = await adminService.getAllUsers();
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "All users fetched",
+      data: users,
+    });
+  }),
+
+  updateUserStatus: catchAsync(async (req: Request, res: Response) => {
+    const user = await adminService.updateUserStatus(
+      req.params.id as string,
+      req.body.accountStatus,
+    );
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "User status updated",
+      data: user,
+    });
+  }),
+
+  getAllGear: catchAsync(async (req: Request, res: Response) => {
+    const gear = await adminService.getAllGear(req.query);
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "All gear listings fetched",
+      data: gear,
+    });
+  }),
+
+  getAllRentals: catchAsync(async (req: Request, res: Response) => {
+    const rentals = await adminService.getAllRentals(req.query);
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "All rental orders fetched",
+      data: rentals,
+    });
+  }),
+
+  createCategory: catchAsync(async (req: Request, res: Response) => {
+    const category = await categoryService.create(req.body);
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.CREATED,
+      message: "Category created",
+      data: category,
+    });
+  }),
+
+  updateCategory: catchAsync(async (req: Request, res: Response) => {
+    const category = await categoryService.update(
+      req.params.id as string,
+      req.body,
+    );
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Category updated",
+      data: category,
+    });
+  }),
+
+  deleteCategory: catchAsync(async (req: Request, res: Response) => {
+    await categoryService.remove(req.params.id as string);
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Category deleted",
+      data: null,
+    });
+  }),
+};
+
+=== src/modules/auth/auth.controller.ts ===
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { NextFunction, Request, Response } from "express";
+import httpStatus from "http-status";
+import config from "../../config";
+import { prisma } from "../../lib/prisma";
+import { catchAsync } from "../../utils/catchAsync";
+import AppError from "../../utils/errors/app.error";
+import { sendResponse } from "../../utils/sendResponse";
+import { authService } from "./auth.service";
+
+const loginUser = catchAsync(
+  async (req: Request, res: Response, _next: NextFunction) => {
+    const payload = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: { email: payload.email },
+    });
+
+    if (!user) {
+      throw new AppError(httpStatus.NOT_FOUND, "User not found");
+    }
+
+    const { accessToken, refreshToken } = await authService.loginUser(payload);
+
+    const isProd = config.node_env === "production";
+
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge: 1000 * 60 * 60 * 24,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "User logged in successfully",
+      data: { accessToken, refreshToken },
+    });
+  },
+);
+
+const refreshToken = catchAsync(
+  async (req: Request, res: Response, _next: NextFunction) => {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+      throw new AppError(httpStatus.UNAUTHORIZED, "Refresh token not found");
+    }
+
+    const { accessToken } = await authService.refreshToken(refreshToken);
+
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "none",
+      maxAge: 1000 * 60 * 60 * 24, // 24 hour or 1 day
+    });
+
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Token Refreshed Successfully",
+      data: {
+        accessToken,
+      },
+    });
+  },
+);
+
+export const authController = {
+  loginUser,
+  refreshToken,
+};
+

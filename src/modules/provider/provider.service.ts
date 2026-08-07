@@ -15,7 +15,7 @@ const ALLOWED_TRANSITIONS: Record<RentalStatus, RentalStatus[]> = {
 };
 
 export const providerServices = {
-  async createBulkGearItems(
+  async createGearItems(
     providerId: string,
     payload: Prisma.GearItemUncheckedCreateInput[],
   ) {
@@ -58,7 +58,7 @@ export const providerServices = {
   async updateGear(
     providerId: string,
     gearId: string,
-    data: Prisma.GearItemUncheckedUpdateManyInput,
+    data: Prisma.GearItemUncheckedUpdateInput,
   ) {
     const gear = await prisma.gearItem.findUnique({ where: { id: gearId } });
     if (!gear) {

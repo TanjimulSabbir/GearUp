@@ -31,7 +31,7 @@ export const paymentController = {
     );
     sendResponse(res, {
       success: true,
-      statusCode: 201,
+      statusCode: 200,
       message: "checkout session confirmed",
       data: payment,
     });
@@ -41,8 +41,8 @@ export const paymentController = {
     const payments = await paymentService.getMine(req.user!.id);
     sendResponse(res, {
       success: true,
-      statusCode: 201,
-      message: "",
+      statusCode: 200,
+      message: "Payments retrieved successfully",
       data: payments,
     });
   }),
@@ -55,8 +55,8 @@ export const paymentController = {
     );
     sendResponse(res, {
       success: true,
-      statusCode: 201,
-      message: "Checkout session created",
+      statusCode: 200,
+      message: "Payment retrieved successfully",
       data: payment,
     });
   }),

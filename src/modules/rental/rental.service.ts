@@ -1,7 +1,7 @@
 import httpStatus from "http-status";
 import { prisma } from "../../lib/prisma";
 import AppError from "../../utils/errors/app.error";
-import { checkActiveRentalConflict } from "../../utils/checkActiveRentals";
+import { expireStaleReservations } from "./rental.utils";
 
 interface CreateRentalInput {
   startDate: Date;
@@ -22,27 +22,35 @@ function daysBetween(start: Date, end: Date) {
 }
 
 export const rentalService = {
-  async create(customerId: string, input: CreateRentalInput) {
+ async create(customerId: string, input: CreateRentalInput) {
     const days = daysBetween(input.startDate, input.endDate);
-    const gearIds = input.items.map((i) => i.gearItemId);
-
-    await checkActiveRentalConflict(customerId, gearIds);
 
     return prisma.$transaction(async (tx) => {
-      const gearItems = await tx.gearItem.findMany({
-        where: { id: { in: gearIds }, isAvailable: true },
-      });
-      const gearById = new Map(gearItems.map((g) => [g.id, g]));
-
       let totalAmount = 0;
       const rentalItemsData: RentalItemCreateData[] = [];
 
       for (const item of input.items) {
-        const gear = gearById.get(item.gearItemId);
+        let gear = await tx.gearItem.findFirst({
+          where: { id: item.gearItemId, isAvailable: true },
+        });
         if (!gear) {
           throw new AppError(
             httpStatus.NOT_FOUND,
             `Gear item ${item.gearItemId} not found or unavailable.`,
+          );
+        }
+
+        // On-demand fallback: not enough stock? try freeing stale reservations
+        // for this specific gear item before giving up.
+        if (gear.stock < item.quantity) {
+          await expireStaleReservations(tx, item.gearItemId);
+          gear = await tx.gearItem.findUnique({ where: { id: item.gearItemId } });
+        }
+
+        if (!gear || gear.stock < item.quantity) {
+          throw new AppError(
+            httpStatus.CONFLICT,
+            `"${gear?.name ?? "Item"}" is not available in the requested quantity. Available: ${gear?.stock ?? 0}`,
           );
         }
 
@@ -55,17 +63,10 @@ export const rentalService = {
           days,
         });
 
-        const result = await tx.gearItem.updateMany({
-          where: { id: gear.id, stock: { gte: item.quantity } },
+        await tx.gearItem.update({
+          where: { id: gear.id },
           data: { stock: { decrement: item.quantity } },
         });
-
-        if (result.count === 0) {
-          throw new AppError(
-            httpStatus.CONFLICT,
-            `Insufficient stock for "${gear.name}". Someone else may have just booked it — please try again.`,
-          );
-        }
       }
 
       return tx.rentalOrder.create({
@@ -74,14 +75,11 @@ export const rentalService = {
           startDate: input.startDate,
           endDate: input.endDate,
           totalAmount,
-          status: "PLACED",
           rentalItems: { create: rentalItemsData },
         },
         include: {
           rentalItems: {
-            include: {
-              gearItem: { select: { id: true, name: true, image: true } },
-            },
+            include: { gearItem: { select: { id: true, name: true, image: true } } },
           },
         },
       });
@@ -138,30 +136,30 @@ export const rentalService = {
     });
   },
 
-  async releaseStock(orderId: string) {
-    const order = await prisma.rentalOrder.findUnique({
+async releaseStock(orderId: string) {
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.rentalOrder.findUnique({
       where: { id: orderId },
       include: { rentalItems: true },
     });
     if (!order) return null;
-    if (!["PLACED", "CONFIRMED"].includes(order.status)) return order;
+    if (order.status !== "CONFIRMED") return order;
 
-    return prisma.$transaction(async (tx) => {
-      await Promise.all(
-        order.rentalItems.map((item) =>
-          tx.gearItem.update({
-            where: { id: item.gearItemId },
-            data: { stock: { increment: item.quantity } },
-          }),
-        ),
-      );
+    await Promise.all(
+      order.rentalItems.map((item) =>
+        tx.gearItem.update({
+          where: { id: item.gearItemId },
+          data: { stock: { increment: item.quantity } },
+        }),
+      ),
+    );
 
-      return tx.rentalOrder.update({
-        where: { id: orderId },
-        data: { status: "PAYMENT_FAILED" },
-      });
+    return tx.rentalOrder.update({
+      where: { id: orderId },
+      data: { status: "PAYMENT_FAILED" },
     });
-  },
+  });
+},
 
   async getMine(customerId: string) {
     return prisma.rentalOrder.findMany({

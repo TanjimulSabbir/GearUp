@@ -52,16 +52,22 @@ const refreshToken = catchAsync(
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
-      throw new AppError(httpStatus.UNAUTHORIZED, "Refresh token not found");
+      throw new AppError(httpStatus.UNAUTHORIZED, "Refresh token not found", {
+        message: "Refresh token not found",
+        description:
+          "Refresh token is required to refresh the access token. Please log in again.",
+      });
     }
 
     const { accessToken } = await authService.refreshToken(refreshToken);
 
+    const isProd = config.node_env === "production";
+
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: false,
-      sameSite: "none",
-      maxAge: 1000 * 60 * 60 * 24, // 24 hour or 1 day
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge: 1000 * 60 * 60 * 24,
     });
 
     sendResponse(res, {

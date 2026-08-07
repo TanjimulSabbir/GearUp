@@ -33,6 +33,4 @@ router.get(
   paymentController.getById,
 );
 
-router.post("/webhook", paymentController.webhook);
-
 export const paymentRoutes = router;

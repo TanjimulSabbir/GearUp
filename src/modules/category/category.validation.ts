@@ -1,13 +1,5 @@
 import { z } from "zod";
 
-// function slugify(name: string) {
-//   return name
-//     .trim()
-//     .toLowerCase()
-//     .replace(/[^a-z0-9]+/g, "-")
-//     .replace(/(^-|-$)/g, "");
-// }
-
 const categoryItemSchema = z
   .object({
     name: z.string().trim().min(2, "Name must be at least 2 characters"),

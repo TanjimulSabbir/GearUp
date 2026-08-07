@@ -3,10 +3,22 @@ import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { providerServices } from "./provider.service";
 import httpStatus from "http-status";
+import AppError from "../../utils/errors/app.error";
 
 export const providerController = {
   createGearItem: catchAsync(async (req: Request, res: Response) => {
-    const data = await providerServices.createBulkGearItems(
+    if (!Array.isArray(req.body) || req.body.length === 0) {
+      return new AppError(
+        httpStatus.BAD_REQUEST,
+        "Request body must be a non-empty array of gear items",
+        {
+          message: "Request body must be a non-empty array of gear items",
+          description:
+            "The request body must be an array of gear items to create. Please provide at least one gear item with array.",
+        },
+      );
+    }
+    const data = await providerServices.createGearItems(
       req.user?.id as string,
       req.body,
     );
