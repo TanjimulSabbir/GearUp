@@ -111,7 +111,7 @@ export const paymentService = {
         };
       }
       if (session.status === "expired") {
-        await this.markFailed(session);
+        await this.markFailed(session);   
       }
     }
 
@@ -195,7 +195,7 @@ export const paymentService = {
 
     return updatedPayment;
   },
-  
+
   async confirmBySessionId(sessionId: string, customerId: string) {
     const payment = await prisma.payment.findUnique({
       where: { stripeSessionId: sessionId },
