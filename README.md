@@ -134,7 +134,7 @@ Role is selected at registration and enforced on every protected route via the `
 
 ```bash
 git clone <repository-url>
-cd gearup-backend
+cd gearup
 npm install
 ```
 

@@ -1,0 +1,1471 @@
+{
+  "info": {
+    "name": "GearUp API",
+    "description": "Complete collection for the GearUp sports & outdoor gear rental platform.\n\n**Base URL**: {{baseUrl}} \u2014 defaults to http://localhost:5000/api/v1. Update to match your actual app.ts mount prefix.\n\n**Auth model**: JWT access + refresh tokens, set as httpOnly cookies on login (not returned in the response body for client-side reading). In Postman, enable the cookie jar (Settings \u2192 General \u2192 'Automatically follow redirects' + cookies enabled) so logging in once carries your session across every other request in this collection automatically.\n\n**Roles**: CUSTOMER, PROVIDER, ADMIN \u2014 set at registration. Routes marked with a required role will 403 if the logged-in user doesn't match.\n\n**Response shape (success)**:\n```\n{ \"success\": true, \"statusCode\": 200, \"message\": \"...\", \"data\": {...}, \"meta\": {...} }\n```\n**Response shape (error)**:\n```\n{ \"success\": false, \"statusCode\": 404, \"message\": \"...\" }\n```\n\n**Collection variables** ({{gearId}}, {{categoryId}}, {{orderId}}, {{userId}}) \u2014 populate these after creating/listing resources so dependent requests (update, delete, get-by-id) work without manual edits.\n\n---\n### Production-readiness notes (this revision)\n- Fixed: every request under **Payments** pointed at `/payments/*`; the server mounts that router at `/api/v1/payment` (singular). All four requests now hit the real path.\n- Added `pm.test()` assertions and automatic variable capture (`categoryId`, `gearId`, `orderId`, `paymentId`, `userId`) on list/create responses, so you can run folders top-to-bottom via Collection Runner without manually copying ids.\n- Added two environments (see the exported `.postman_environment.json` files): **Local** (`http://localhost:<PORT>/api/v1`) and **Production** (placeholder \u2014 fill in your real deployed URL). Never put real secrets in an environment file you plan to share.\n- The Stripe Webhook request is included for completeness but cannot be exercised correctly from Postman directly \u2014 see its description for the `stripe listen`/`stripe trigger` workflow.\n- `provider.gear` bulk-create returns `{ count }`, not the created records, so `gearId` can't be captured from that response \u2014 run **Get My Gear** right after to populate it.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:7000/api/v1"
+    },
+    {
+      "key": "gearId",
+      "value": ""
+    },
+    {
+      "key": "categoryId",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "paymentId",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "sessionId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Login and token refresh. Both set httpOnly cookies rather than returning tokens for client-side storage, protecting against XSS-based token theft.",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "**Public.**\n\nValidates credentials and, on success, sets two httpOnly cookies:\n- `accessToken` (short-lived, e.g. 1 day)\n- `refreshToken` (long-lived, e.g. 7 days)\n\nBoth are also returned in `data` for reference/debugging, but the cookies are what actually authenticate subsequent requests.\n\n**Body params**\n| Field | Type | Required | Notes |\n|---|---|---|---|\n| email | string | yes | Must be a registered account |\n| password | string | yes | Plaintext; compared against the stored hash |\n\n**Errors**: 404 if no user with that email exists; 400 if the password doesn't match; 403 if the account is banned.\n\n**Note**: a 404 specifically for \"no such email\" vs a distinct error for \"wrong password\" lets a caller enumerate registered emails. If that matters for your threat model, make both cases return the same generic \"Invalid email or password\" message/status."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "// Convenience only: primary auth is via httpOnly cookies (cookie jar).",
+                  "// These variables let you manually add an Authorization: Bearer header",
+                  "// if you're testing against a client that doesn't send cookies.",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "}",
+                  "if (json.data && json.data.refreshToken) {",
+                  "    pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh-token"
+              ]
+            },
+            "description": "**Public (relies on cookie).**\n\nReads the `refreshToken` httpOnly cookie, verifies it, and issues a new `accessToken` cookie \u2014 lets the client stay logged in past the access token's short expiry without re-entering credentials.\n\nNo body required \u2014 the refresh token is read from the cookie automatically (requires cookie jar enabled in Postman).\n\n**Errors**: 401 if the refreshToken cookie is missing, expired, or invalid."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "Account registration for customers and providers.",
+      "item": [
+        {
+          "name": "Register (Signup)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"customer@example.com\",\n  \"password\": \"Password123!\",\n  \"phone\": \"+8801700000000\",\n  \"address\": \"Dhaka, Bangladesh\",\n  \"role\": \"CUSTOMER\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "signup"
+              ]
+            },
+            "description": "**Public.**\n\nCreates a new account. Role selection happens here \u2014 the platform has no separate 'become a provider' upgrade flow, so choose the correct role at signup time.\n\n**Body params**\n| Field | Type | Required | Notes |\n|---|---|---|---|\n| name | string | yes | Display name |\n| email | string | yes | Must be unique |\n| password | string | yes | Hashed before storage \u2014 never stored/returned in plaintext |\n| phone | string | depends | Adjust to your actual userRegisterSchema rules |\n| address | string | depends | Adjust to your actual userRegisterSchema rules |\n| role | enum | yes | `CUSTOMER` or `PROVIDER` (not `ADMIN` \u2014 admins are seeded/promoted separately) |\n\n**Errors**: 409/400 if the email is already registered (depends on your service's uniqueness check)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set('userId', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Categories (Public)",
+      "description": "Read-only gear category browsing \u2014 no auth required.",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categories?page=1&limit=10&sortBy=createdAt&sortOrder=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "1-indexed page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page, capped server-side"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Whitelisted sortable fields only \u2014 anything else falls back to createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "asc | desc"
+                }
+              ]
+            },
+            "description": "**Public.**\n\nReturns a paginated list of gear categories with `meta: { page, limit, total, totalPages }`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = json.data && json.data.items;",
+                  "if (items && items.length) {",
+                  "    pm.collectionVariables.set('categoryId', items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Gear (Public)",
+      "description": "Public gear browsing with search, filtering, and detail view \u2014 matches the 'Browse all available gear / Search and filter by category, price, brand, and availability' feature requirement.",
+      "item": [
+        {
+          "name": "Get All Gear (with filters)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/gear?page=1&limit=10&sortBy=createdAt&sortOrder=desc&search=tent&categoryId={{categoryId}}&brand=Coleman&condition=GOOD&minPrice=10&maxPrice=100&isAvailable=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "gear"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Max 100"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "name | rentalPrice | createdAt | stock"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "asc | desc"
+                },
+                {
+                  "key": "search",
+                  "value": "tent",
+                  "description": "Fuzzy match across name, description, and brand"
+                },
+                {
+                  "key": "categoryId",
+                  "value": "{{categoryId}}",
+                  "description": "Exact category filter"
+                },
+                {
+                  "key": "brand",
+                  "value": "Coleman",
+                  "description": "Exact (case-insensitive) brand filter, separate from free-text search"
+                },
+                {
+                  "key": "condition",
+                  "value": "GOOD",
+                  "description": "NEW | GOOD | FAIR | DAMAGED"
+                },
+                {
+                  "key": "minPrice",
+                  "value": "10",
+                  "description": "Filters on rentalPrice >="
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "100",
+                  "description": "Filters on rentalPrice <="
+                },
+                {
+                  "key": "isAvailable",
+                  "value": "true",
+                  "description": "Defaults to true if omitted \u2014 unavailable gear is hidden from public browsing unless explicitly requested"
+                }
+              ]
+            },
+            "description": "**Public.**\n\nAll query params are optional and combine with AND logic (e.g. search + categoryId + minPrice all apply together). Returns `data` as an array of gear items with `category` and `provider` (id/name/email only) included, plus `meta` for pagination.\n\n**Validation**: minPrice cannot exceed maxPrice \u2014 returns a 400 if violated."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = json.data && json.data.items;",
+                  "if (items && items.length) {",
+                  "    pm.collectionVariables.set('gearId', items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Gear By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/gear/{{gearId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "gear",
+                "{{gearId}}"
+              ]
+            },
+            "description": "**Public.**\n\nReturns full gear details with `category` and `provider` included.\n\n**Errors**: 404 if the id doesn't exist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Provider",
+      "description": "Gear inventory management and order fulfillment for the PROVIDER role. All routes require an authenticated provider.",
+      "item": [
+        {
+          "name": "Create Gear Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"4-Person Camping Tent\",\n  \"description\": \"Waterproof, easy setup, fits 4 people comfortably.\",\n  \"brand\": \"Coleman\",\n  \"image\": \"https://example.com/images/tent.jpg\",\n  \"rentalPrice\": 25.5,\n  \"stock\": 5,\n  \"condition\": \"GOOD\",\n  \"categoryId\": \"{{categoryId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/provider/gear",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "provider",
+                "gear"
+              ]
+            },
+            "description": "**Requires PROVIDER role.**\n\n`providerId` is set automatically from the authenticated user \u2014 never accepted from the request body.\n\n**Body params**\n| Field | Type | Required | Notes |\n|---|---|---|---|\n| name | string | yes | 1\u2013200 chars |\n| description | string | yes | |\n| brand | string | yes | |\n| image | string (url) | no | |\n| rentalPrice | number | yes | Must be > 0 |\n| stock | integer | yes | Must be >= 0 |\n| condition | enum | no | NEW \\| GOOD \\| FAIR \\| DAMAGED \u2014 defaults to GOOD |\n| categoryId | uuid | yes | Must reference an existing category |\n\n**Errors**: 400 if categoryId doesn't exist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "// NOTE: providerServices.createGearItems() uses prisma.gearItem.createMany(),",
+                  "// which returns only { count }, not the created rows/ids. gearId can't be",
+                  "// captured from this response \u2014 call 'Get My Gear' below to populate it."
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Gear",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/provider/gear",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "provider",
+                "gear"
+              ]
+            },
+            "description": "**Requires PROVIDER role.**\n\nReturns every gear item owned by the authenticated provider (regardless of isAvailable), including category info. Not paginated."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.length) {",
+                  "    pm.collectionVariables.set('gearId', json.data[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Gear",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rentalPrice\": 30,\n  \"stock\": 8,\n  \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/provider/gear/{{gearId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "provider",
+                "gear",
+                "{{gearId}}"
+              ]
+            },
+            "description": "**Requires PROVIDER role + ownership.**\n\nAll fields optional \u2014 send only what you want to change. Unknown fields are rejected (strict schema); this prevents overwriting protected fields like `id`, `providerId`, or `createdAt`.\n\n**Updatable fields**: name, description, brand, image, rentalPrice, stock, condition, categoryId, isAvailable.\n\n**Errors**: 404 if gear doesn't exist; 403 if it belongs to a different provider; 400 if categoryId is provided but invalid."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove Gear",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/provider/gear/{{gearId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "provider",
+                "gear",
+                "{{gearId}}"
+              ]
+            },
+            "description": "**Requires PROVIDER role + ownership.**\n\nIf the gear has any orders currently in an active state (PLACED, CONFIRMED, PAID, or PICKED_UP), it is **soft-deleted** (`isAvailable` set to false) instead of removed, so in-flight rentals stay intact. Otherwise it's hard-deleted.\n\n**Errors**: 404 if not found; 403 if it belongs to a different provider."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/provider/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "provider",
+                "orders"
+              ]
+            },
+            "description": "**Requires PROVIDER role.**\n\nReturns every rental order that contains at least one of this provider's gear items \u2014 including orders where other providers' items are also present, but `rentalItems` on each order is filtered down to only this provider's line items.\n\nEach order includes `customer` (id/name/email/phone), `rentalItems` (with nested gearItem id/name/image), and `payments`. Check `returnRequested` / `returnRequestedAt` on each order to see which ones the customer has asked to return."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.length) {",
+                  "    pm.collectionVariables.set('orderId', json.data[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONFIRMED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/provider/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "provider",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "description": "**Requires PROVIDER role + at least one gear item in the order.**\n\nAllowed transitions (anything else is rejected with 400):\n```\nPLACED    -> CONFIRMED | CANCELLED\nCONFIRMED -> CANCELLED\nPAID      -> PICKED_UP\nPICKED_UP -> RETURNED\n```\nNote: PLACED -> PAID happens automatically via the Stripe/SSLCommerz webhook, not through this route.\n\nSetting `CANCELLED` or `RETURNED` automatically restocks the gear (`stock` incremented by the order's quantity for each item).\n\n**Body params**\n| Field | Type | Required | Notes |\n|---|---|---|---|\n| status | enum | yes | Must be a valid next state per the transition map above |\n\n**Errors**: 404 order not found; 403 if none of the order's items belong to this provider; 400 if the transition isn't allowed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rentals (Customer)",
+      "description": "Order placement and lifecycle actions for the CUSTOMER role.",
+      "item": [
+        {
+          "name": "Create Rental Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"2026-08-10T00:00:00.000Z\",\n  \"endDate\": \"2026-08-13T00:00:00.000Z\",\n  \"items\": [\n    { \"gearItemId\": \"{{gearId}}\", \"quantity\": 1 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rentals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rentals"
+              ]
+            },
+            "description": "**Requires CUSTOMER role.**\n\nAtomic transaction: validates stock for every item, computes `totalAmount` from each gear item's `rentalPrice \u00d7 quantity \u00d7 number of rental days`, decrements `stock` for each item, and creates the order with status `PLACED`. If any item fails (not found, unavailable, insufficient stock), the entire transaction rolls back \u2014 no partial orders.\n\n**Body params**\n| Field | Type | Required | Notes |\n|---|---|---|---|\n| startDate | ISO date | yes | |\n| endDate | ISO date | yes | Must be after startDate |\n| items | array | yes, min 1 | Each item: `{ gearItemId: uuid, quantity: positive integer }` |\n\n**Errors**: 404 if a gearItemId doesn't exist or isn't available; 409 if requested quantity exceeds current stock."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set('orderId', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Rentals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rentals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rentals"
+              ]
+            },
+            "description": "**Requires CUSTOMER role.**\n\nReturns all orders placed by the authenticated customer, newest first, including `rentalItems` (with gear id/name/image) and `payments` (id/status/amount/method/paidAt)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Rental By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rentals/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rentals",
+                "{{orderId}}"
+              ]
+            },
+            "description": "**Access**: the order's own customer, any provider with a gear item in the order, or an admin.\n\nReturns full order details including all rentalItems (full gearItem objects, not a select subset), payments, and customer contact info.\n\n**Errors**: 404 if not found; 403 if the requester is none of the allowed parties."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel Rental",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rentals/{{orderId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rentals",
+                "{{orderId}}",
+                "cancel"
+              ]
+            },
+            "description": "**Requires CUSTOMER role + ownership.**\n\nOnly allowed while order status is `PLACED` or `CONFIRMED` \u2014 once payment has gone through (`PAID` or later), cancellation via this route is blocked (would need a refund flow instead). On success, restocks every item in the order and sets status to `CANCELLED`.\n\nNo body required.\n\n**Errors**: 404 not found; 403 not the owner; 400 if status is already PAID/PICKED_UP/RETURNED/CANCELLED."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request Return",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rentals/{{orderId}}/request-return",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rentals",
+                "{{orderId}}",
+                "request-return"
+              ]
+            },
+            "description": "**Requires CUSTOMER role + ownership.**\n\nSignals to the provider that the customer intends to return the gear. This does **not** change the order's `status` itself \u2014 it only sets `returnRequested: true` and stamps `returnRequestedAt` with the current time. The provider still must call **Update Order Status** with `RETURNED` to finalize the actual transition (which is what triggers restocking and unlocks reviews).\n\n`returnRequested` is a permanent record and is never reset back to false, even after the provider confirms the return \u2014 it preserves whether the return was customer-initiated or provider-initiated for later reference.\n\nNo body required.\n\n**Preconditions checked**:\n- Order status must currently be `PICKED_UP`\n- Order must have at least one `Payment` with status `COMPLETED`\n- A return must not already be requested on this order\n\n**Errors**: 404 not found; 403 not the owner; 400 if not PICKED_UP or not paid; 409 if already requested."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "description": "Post-rental gear reviews.",
+      "item": [
+        {
+          "name": "Create Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gearItemId\": \"{{gearId}}\",\n  \"rentalOrderId\": \"{{orderId}}\",\n  \"rating\": 5,\n  \"comment\": \"Great tent, stayed dry through heavy rain. Would rent again.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews"
+              ]
+            },
+            "description": "**Requires CUSTOMER role.**\n\nOnly allowed once the referenced rental order's status is `RETURNED`, and only for a gear item that was actually part of that order. One review per (customer, gear item, rental order) combination \u2014 renting the same gear again in a separate order allows a separate review.\n\n**Body params**\n| Field | Type | Required | Notes |\n|---|---|---|---|\n| gearItemId | uuid | yes | Must have been part of the given order |\n| rentalOrderId | uuid | yes | Must belong to the requesting customer and be RETURNED |\n| rating | integer | yes | 1\u20135 |\n| comment | string | yes | Max 1000 chars |\n\n**Errors**: 404 order not found; 403 not your order; 400 if order isn't RETURNED yet, or the gear wasn't part of this order; 409 if already reviewed this exact (gear, order) pair."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "description": "Stripe / SSLCommerz payment session creation and webhook confirmation.\n\n**Fixed in this revision:** requests in this folder previously pointed at `/payments/*`, but `app.ts` mounts the payment router at `/api/v1/payment` (singular) \u2014 every request here was 404ing against the real server. Paths now match the Express mount.",
+      "item": [
+        {
+          "name": "Create Payment Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rentalOrderId\": \"{{orderId}}\",\n  \"method\": \"STRIPE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment",
+                "create"
+              ]
+            },
+            "description": "**Requires CUSTOMER role + ownership of the order.**\n\nCreates a Stripe PaymentIntent (or SSLCommerz session) for the given order's `totalAmount`, attaching `rentalOrderId` as metadata so the webhook can later match the payment back to the correct order. Returns a client secret / redirect URL depending on `method`.\n\n**Body params**\n| Field | Type | Required | Notes |\n|---|---|---|---|\n| rentalOrderId | uuid | yes | Must belong to the requesting customer, status should be CONFIRMED |\n| method | enum | yes | STRIPE \\| SSLCOMMERZ |\n\n**Errors**: 404 order not found; 403 not your order; 400 if order isn't in a payable state."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.paymentId) {",
+                  "    pm.collectionVariables.set('paymentId', json.data.paymentId);",
+                  "}",
+                  "if (json.data && json.data.sessionId) {",
+                  "    pm.collectionVariables.set('sessionId', json.data.sessionId);",
+                  "}",
+                  "if (json.data && json.data.url) {",
+                  "    console.log('Open this Stripe Checkout URL in a browser to complete payment:', json.data.url);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stripe Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "t=...,v1=...",
+                "description": "Generated automatically by Stripe/Stripe CLI \u2014 cannot be manually constructed for a real test. Use `stripe trigger payment_intent.succeeded` via the Stripe CLI instead of calling this from Postman directly."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"//\": \"Do not send this manually \u2014 Stripe's raw event payload must be signed. Use `stripe listen --forward-to <baseUrl>/payments/webhook` and `stripe trigger <event>` instead.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment",
+                "webhook"
+              ]
+            },
+            "description": "**Not directly callable from Postman** \u2014 included here for documentation completeness only.\n\nThis route must be mounted with `express.raw({ type: 'application/json' })` (before the global `express.json()` middleware) since Stripe's signature verification requires the exact raw byte payload.\n\nOn `payment_intent.succeeded`: marks the matching `Payment` as `COMPLETED`, sets `paidAt`, and flips the `RentalOrder.status` to `PAID`.\nOn `payment_intent.payment_failed`: marks the `Payment` as `FAILED`.\n\n**To test locally**: run `stripe listen --forward-to {{baseUrl}}/payments/webhook` in one terminal, then `stripe trigger payment_intent.succeeded` in another.\n\n**This request cannot be triggered manually from Postman in a way that will pass signature verification.** The route reads the raw body and verifies `stripe-signature` against `STRIPE_WEBHOOK_SECRET`; Postman can't produce a valid signature for arbitrary JSON. To test this flow, use the Stripe CLI: `stripe listen --forward-to localhost:<port>/api/v1/payment/webhook` and `stripe trigger checkout.session.completed`."
+          }
+        },
+        {
+          "name": "Get My Payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment"
+              ]
+            },
+            "description": "**Requires CUSTOMER role.**\n\nReturns the authenticated customer's full payment history across all their rental orders."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.length) {",
+                  "    pm.collectionVariables.set('paymentId', json.data[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Payment By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payment/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment",
+                "{{paymentId}}"
+              ]
+            },
+            "description": "**Access**: the payment's owning customer, or an admin.\n\n**Errors**: 404 not found; 403 if not the owner or an admin."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "Platform oversight \u2014 all routes require ADMIN role, enforced globally via `router.use(auth(\"ADMIN\"))` on this module.",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ]
+            },
+            "description": "**Requires ADMIN role.**\n\nReturns every registered user (customers, providers, and admins)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const nonAdmin = (json.data || []).find(u => u.role !== 'ADMIN');",
+                  "if (nonAdmin) {",
+                  "    pm.collectionVariables.set('userId', nonAdmin.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update User Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"BANNED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "description": "**Requires ADMIN role.**\n\nAdmins cannot change another admin's status \u2014 attempting this returns 403 regardless of the requested status. Setting `accountStatus` also syncs `isActive` (`true` only when status is `ACTIVE`; `false` for `INACTIVE` or `BANNED`).\n\n**Body params**\n| Field | Type | Required | Notes |\n|---|---|---|---|\n| status | enum | yes | ACTIVE \\| INACTIVE \\| BANNED |\n\n**Errors**: 404 user not found; 403 if target user is an ADMIN."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Gear (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/gear?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "gear"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "**Requires ADMIN role.**\n\nUnlike the public gear listing, this returns every listing regardless of `isAvailable` \u2014 useful for moderation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const items = json.data && json.data.items;",
+                  "if (items && items.length) {",
+                  "    pm.collectionVariables.set('gearId', items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Rentals (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/rentals?page=1&limit=10&sortBy=createdAt&sortOrder=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "rentals"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "startDate | endDate | totalAmount | status | createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc"
+                }
+              ]
+            },
+            "description": "**Requires ADMIN role.**\n\nReturns every rental order platform-wide, across all customers and providers, with customer, rentalItems (+ nested gearItem), and payment included."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "const rentals_ = json.data && json.data.rentals;",
+                  "if (rentals_ && rentals_.length) {",
+                  "    pm.collectionVariables.set('orderId', rentals_[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Camping\",\n  \"slug\": \"camping\",\n  \"description\": \"Tents, sleeping bags, and camping essentials.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "categories"
+              ]
+            },
+            "description": "**Requires ADMIN role.**\n\n**Body params**\n| Field | Type | Required | Notes |\n|---|---|---|---|\n| name | string | yes | |\n| slug | string | yes | URL-friendly identifier, should be unique |\n| description | string | yes | |"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set('categoryId', json.data.id);",
+                  "} else if (Array.isArray(json.data)) {",
+                  "    // batch create returns {createdCount, attempted, data}; no ids exposed here either",
+                  "    console.log('Batch category create \u2014 fetch Get All Categories to populate categoryId');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated description for camping gear.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/categories/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "categories",
+                "{{categoryId}}"
+              ]
+            },
+            "description": "**Requires ADMIN role.**\n\nPartial update \u2014 send only the fields you want to change (name, slug, description).\n\n**Errors**: 404 if category doesn't exist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/categories/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "categories",
+                "{{categoryId}}"
+              ]
+            },
+            "description": "**Requires ADMIN role.**\n\n\u26a0\ufe0f Consider whether gear items referencing this category should block deletion (foreign key constraint) or cascade \u2014 confirm your Prisma `onDelete` behavior for `GearItem.categoryId` before relying on this in production.\n\n**Errors**: 404 if category doesn't exist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is success', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success envelope', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('success', true);",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

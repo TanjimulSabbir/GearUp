@@ -39,7 +39,7 @@ app.get("/", (req: Request, res: Response) => {
   res.sendFile(path.join(process.cwd(), "public", "index.html"));
 });
 app.get("/postman.json", (req: Request, res: Response) => {
-  res.sendFile(path.join(process.cwd(), "post-man-v2.json"));
+  res.sendFile(path.join(process.cwd(), "postman.json"));
 });
 
 app.use("/api/v1/auth", authRoutes);
