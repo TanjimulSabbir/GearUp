@@ -1,7 +1,7 @@
 import httpStatus from "http-status";
 import { prisma } from "../../lib/prisma";
 import AppError from "../../utils/errors/app.error";
-
+import { checkActiveRentalConflict } from "../../utils/checkActiveRentals";
 
 interface CreateRentalInput {
   startDate: Date;
@@ -26,9 +26,9 @@ export const rentalService = {
     const days = daysBetween(input.startDate, input.endDate);
     const gearIds = input.items.map((i) => i.gearItemId);
 
+    await checkActiveRentalConflict(customerId, gearIds);
+
     return prisma.$transaction(async (tx) => {
-      // Fixed: was one findFirst() per item (N queries). Now a single
-      // findMany() for all items in the cart.
       const gearItems = await tx.gearItem.findMany({
         where: { id: { in: gearIds }, isAvailable: true },
       });
@@ -51,15 +51,10 @@ export const rentalService = {
         rentalItemsData.push({
           gearItemId: gear.id,
           quantity: item.quantity,
-          pricePerDay: gear.rentalPrice, // snapshot, protects against future price changes
+          pricePerDay: gear.rentalPrice,
           days,
         });
 
-        // Fixed: was a separate findFirst-then-update, which left a race
-        // window where two concurrent orders could both pass the stock
-        // check for the last unit. This makes the check and the decrement
-        // one atomic operation — if another transaction already took the
-        // stock, this updates 0 rows instead of going negative.
         const result = await tx.gearItem.updateMany({
           where: { id: gear.id, stock: { gte: item.quantity } },
           data: { stock: { decrement: item.quantity } },
@@ -84,10 +79,62 @@ export const rentalService = {
         },
         include: {
           rentalItems: {
-            include: { gearItem: { select: { id: true, name: true, image: true } } },
+            include: {
+              gearItem: { select: { id: true, name: true, image: true } },
+            },
           },
         },
       });
+    });
+  },
+
+  async requestReturn(customerId: string, orderId: string) {
+    const order = await prisma.rentalOrder.findUnique({
+      where: { id: orderId },
+      include: { payments: true },
+    });
+
+    if (!order) {
+      throw new AppError(httpStatus.NOT_FOUND, "Rental order not found.");
+    }
+
+    if (order.customerId !== customerId) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You can only request a return on your own orders.",
+      );
+    }
+
+    if (order.status !== "PICKED_UP") {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "You can only request a return for gear that has been picked up.",
+      );
+    }
+
+    const hasCompletedPayment = order.payments.some(
+      (p) => p.status === "COMPLETED",
+    );
+    if (!hasCompletedPayment) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "This order must be fully paid before a return can be requested.",
+      );
+    }
+
+    if (order.returnRequested) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "A return has already been requested for this order.",
+      );
+    }
+
+    return prisma.rentalOrder.update({
+      where: { id: orderId },
+      data: {
+        returnRequested: true,
+        returnRequestedAt: new Date(),
+      },
     });
   },
 
@@ -121,10 +168,18 @@ export const rentalService = {
       where: { customerId },
       include: {
         rentalItems: {
-          include: { gearItem: { select: { id: true, name: true, image: true } } },
+          include: {
+            gearItem: { select: { id: true, name: true, image: true } },
+          },
         },
         payments: {
-          select: { id: true, status: true, amount: true, method: true, paidAt: true },
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            method: true,
+            paidAt: true,
+          },
         },
       },
       orderBy: { createdAt: "desc" },

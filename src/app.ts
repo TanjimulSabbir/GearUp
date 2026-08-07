@@ -5,15 +5,16 @@ import path from "path";
 import config from "./config";
 import { globalErrorHandler } from "./middlewares/globalErrorHandler";
 import { notFound } from "./middlewares/notFound";
-import { authRoutes } from "./modules/auth/auth.routes";
-import { userRoutes } from "./modules/user/user.routes";
 import { adminRoutes } from "./modules/admin/admin.routes";
+import { authRoutes } from "./modules/auth/auth.routes";
 import { categoryRoutes } from "./modules/category/category.routes";
 import { gearRoutes } from "./modules/gear/gear.routes";
+import { paymentRoutes } from "./modules/payment/payment.routes";
 import { providerRoutes } from "./modules/provider/provider.routes";
 import { rentalRoutes } from "./modules/rental/rental.routes";
-import { paymentRoutes } from "./modules/payment/payment.routes";
 import { reviewRoutes } from "./modules/review/review.routes";
+import { userRoutes } from "./modules/user/user.routes";
+import { paymentController } from "./modules/payment/payment.controller";
 
 const app: Application = express();
 
@@ -23,7 +24,12 @@ app.use(
     credentials: true,
   }),
 );
-app.use("/api/v1/payment/webhook", express.raw({ type: "application/json" }));
+
+app.use(
+  "/api/v1/payment/webhook",
+  express.raw({ type: "application/json" }),
+  paymentController.webhook,
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

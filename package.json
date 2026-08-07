@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1",
     "predeploy": "npm run typecheck && npm run build && npx prisma generate",
-    "stripe:webhook": "stripe listen --forward-to localhost:7000/api/subscription/webhook",
+    "stripe:webhook": "stripe listen --forward-to localhost:7000/api/v1/payment/webhook",
     "deploy": "npm run predeploy && vercel --prod",
     "module": "node scripts/generate-module.js"
   },

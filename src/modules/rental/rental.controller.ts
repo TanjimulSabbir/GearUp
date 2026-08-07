@@ -10,12 +10,21 @@ export const rentalController = {
     sendResponse(res, {
       success: true,
       statusCode: httpStatus.CREATED,
-      // Fixed: previous message said "check your email" — no email/notification
-      // service exists anywhere in this codebase. Left as an accurate
-      // description of what actually happens instead. Add the email step
-      // first (or a GET /rentals/:id poll on the frontend) before promising
-      // it in the response message again.
-      message: "Rental order created successfully. Waiting for provider confirmation before you can pay.",
+      message:
+        "Rental order created successfully. Waiting for provider confirmation before you can pay.",
+      data: order,
+    });
+  }),
+
+  requestReturn: catchAsync(async (req: Request, res: Response) => {
+    const order = await rentalService.requestReturn(
+      req.user!.id,
+      req.params.id as string,
+    );
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Return requested successfully",
       data: order,
     });
   }),
@@ -45,7 +54,10 @@ export const rentalController = {
   }),
 
   cancel: catchAsync(async (req: Request, res: Response) => {
-    const order = await rentalService.cancel(req.user!.id, req.params.id as string);
+    const order = await rentalService.cancel(
+      req.user!.id,
+      req.params.id as string,
+    );
     sendResponse(res, {
       success: true,
       statusCode: httpStatus.OK,

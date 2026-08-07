@@ -1,7 +1,7 @@
 model Payment {
   id String @id @default(uuid())
 
-  rentalOrderId String @unique
+  rentalOrderId String
 
   transactionId String?
 

@@ -34,3 +34,9 @@ export const rentalIdParamSchema = z.object({
     })
     .strict(),
 });
+
+export const requestReturnSchema = z.object({
+  params: z.object({
+    id: z.uuid("Invalid rental order id"),
+  }),
+});

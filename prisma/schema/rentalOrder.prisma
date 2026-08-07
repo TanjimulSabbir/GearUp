@@ -9,7 +9,9 @@ model RentalOrder {
 
     totalAmount Float
 
-    status RentalStatus @default(PLACED)
+    status            RentalStatus @default(PLACED)
+    returnRequested   Boolean      @default(false)
+    returnRequestedAt DateTime?
 
     rentalItems RentalItem[]
     reviews     Review[]

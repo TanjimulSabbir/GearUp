@@ -76,22 +76,31 @@ export const paymentController = {
       return res.status(400).json({
         success: false,
         message: `Webhook signature verification failed: ${message}`,
-        errorDetails: null,
+        errorDetails: { error: err instanceof Error ? err.stack : undefined },
+      });
+    }
+
+    if (!event) {
+      return res.status(400).json({
+        success: false,
+        message: "Webhook signature verification failed",
       });
     }
 
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        await paymentService.markCompleted(
-          session.id,
-          session.payment_intent as string,
-        );
+        await paymentService.markCompleted(session);
+        break;
+      }
+      case "checkout.session.async_payment_failed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await paymentService.markFailed(session);
         break;
       }
       case "checkout.session.expired": {
         const session = event.data.object as Stripe.Checkout.Session;
-        await paymentService.markFailed(session.id);
+        await paymentService.markFailed(session);
         break;
       }
       default:

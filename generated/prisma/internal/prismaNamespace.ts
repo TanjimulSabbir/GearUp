@@ -1121,6 +1121,8 @@ export const RentalOrderScalarFieldEnum = {
   endDate: 'endDate',
   totalAmount: 'totalAmount',
   status: 'status',
+  returnRequested: 'returnRequested',
+  returnRequestedAt: 'returnRequestedAt',
   createdAt: 'createdAt'
 } as const
 
