@@ -1,0 +1,30 @@
+model GearItem {
+    id String @id @default(uuid())
+
+    name        String
+    description String
+
+    brand String
+    image String?
+
+    rentalPrice Float
+    stock       Int
+
+    condition GearCondition @default(GOOD)
+
+    isAvailable Boolean @default(true)
+
+    providerId String
+    categoryId String
+
+    provider User     @relation(fields: [providerId], references: [id])
+    category Category @relation(fields: [categoryId], references: [id])
+
+    reviews     Review[]
+    rentalItems RentalItem[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("Gear_Items")
+}

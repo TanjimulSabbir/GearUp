@@ -1,0 +1,343 @@
+=== src/modules/category/category.validation.ts ===
+import { z } from "zod";
+
+// function slugify(name: string) {
+//   return name
+//     .trim()
+//     .toLowerCase()
+//     .replace(/[^a-z0-9]+/g, "-")
+//     .replace(/(^-|-$)/g, "");
+// }
+
+const categoryItemSchema = z
+  .object({
+    name: z.string().trim().min(2, "Name must be at least 2 characters"),
+    slug: z.string().trim().min(2, "Slug must be at least 2 characters"),
+    description: z.string().trim().optional(),
+  })
+  .strict();
+
+export const createCategorySchema = z.object({
+  body: z.union([
+    categoryItemSchema,
+    z.array(categoryItemSchema).min(1, "At least one category is required"),
+  ]),
+});
+
+export const updateCategorySchema = z.object({
+  params: z.object({ id: z.string().uuid("Invalid category id") }),
+  body: z
+    .object({
+      name: z.string().trim().min(2).optional(),
+
+      slug: z
+        .string()
+        .trim()
+        .min(2, "Slug must be at least 2 characters")
+        .optional(),
+      description: z.string().trim().optional(),
+    })
+    .strict(),
+});
+
+=== src/modules/user/user.validation.ts ===
+import { z } from "zod";
+
+export const userRegisterSchema = z.object({
+  body: z.object({
+    name: z
+      .string({ error: "Name is required" })
+      .trim()
+      .min(1, "Name cannot be empty")
+      .max(100, "Name must be at most 100 characters"),
+
+    email: z
+      .email("Please enter a valid email address")
+      .transform((email) => email.toLowerCase()),
+
+    password: z
+      .string({ error: "Password is required" })
+      .min(6, "Password must be at least 6 characters")
+      .max(128, "Password must be at most 128 characters"),
+
+    phone: z.string().trim().optional(),
+
+    address: z
+      .string()
+      .trim()
+      .max(255, "Address must be at most 255 characters")
+      .optional(),
+
+    role: z
+      .enum(["CUSTOMER", "PROVIDER"], {
+        error: "Role must be either CUSTOMER or PROVIDER",
+      })
+  }),
+});
+
+export type UserRegisterSchemaType = z.infer<
+  typeof userRegisterSchema
+>["body"];
+=== src/modules/rental/rental.validation.ts ===
+import { z } from "zod";
+
+export const createRentalSchema = z.object({
+  body: z
+    .object({
+      startDate: z.coerce.date(),
+      endDate: z.coerce.date(),
+      items: z
+        .array(
+          z.object({
+            gearItemId: z.uuid("Invalid gear id"),
+            quantity: z.number().int().positive(),
+          }),
+        )
+        .min(1, "At least one item is required"),
+    })
+    .strict()
+    .refine((data) => data.endDate > data.startDate, {
+      message: "endDate must be after startDate",
+      path: ["endDate"],
+    }),
+});
+
+export const rentalIdParamSchema = z.object({
+  params: z
+    .object({
+      id: z
+        .string({
+          error: "Rental order id is required",
+        })
+        .trim()
+        .min(1, "Rental order id cannot be empty")
+        .uuid("Invalid rental order id format"),
+    })
+    .strict(),
+});
+
+export const requestReturnSchema = z.object({
+  params: z.object({
+    id: z.uuid("Invalid rental order id"),
+  }),
+});
+=== src/modules/gear/gear.validation.ts ===
+import { z } from "zod";
+import { GearCondition } from "../../../generated/prisma/client";
+
+export const getAllGearSchema = z.object({
+  query: z
+    .object({
+      page: z.coerce.number().int().positive().optional().default(1),
+      limit: z.coerce.number().int().positive().max(100).optional().default(10),
+      sortBy: z
+        .enum(["name", "rentalPrice", "createdAt", "stock"])
+        .optional()
+        .default("createdAt"),
+      sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+      search: z.string().trim().min(1).optional(),
+      categoryId: z.uuid("Invalid category id").optional(),
+      brand: z.string().trim().min(1).optional(),
+      condition: z.enum(GearCondition).optional(),
+      minPrice: z.coerce.number().nonnegative().optional(),
+      maxPrice: z.coerce.number().nonnegative().optional(),
+      isAvailable: z.enum(["true", "false"]).optional(),
+    })
+    .refine(
+      (data) =>
+        data.minPrice === undefined ||
+        data.maxPrice === undefined ||
+        data.minPrice <= data.maxPrice,
+      {
+        message: "minPrice cannot be greater than maxPrice",
+        path: ["minPrice"],
+      },
+    ),
+});
+
+export const getGearByIdSchema = z.object({
+  params: z.object({
+    id: z.uuid("Invalid gear id"),
+  }),
+});
+
+export type TGetAllGearQuery = z.infer<typeof getAllGearSchema>["query"];
+
+export type TGetGearByIdParams = z.infer<typeof getGearByIdSchema>["params"];
+
+=== src/modules/provider/provider.validation.ts ===
+import { z } from "zod";
+import { GearCondition } from "../../../generated/prisma/client";
+
+export const createGearItemSchema = z.object({
+  body: z.object({
+    name: z
+      .string({ error: "Name is required" })
+      .trim()
+      .min(1, "Name cannot be empty")
+      .max(200, "Name must be at most 200 characters"),
+
+    description: z
+      .string({ error: "Description is required" })
+      .trim()
+      .min(10, "Description must be at least 10 characters")
+      .max(5000, "Description must be at most 5000 characters"),
+
+    brand: z
+      .string({ error: "Brand is required" })
+      .trim()
+      .min(1, "Brand cannot be empty")
+      .max(100, "Brand must be at most 100 characters"),
+
+    image: z.url("Image must be a valid URL").optional(),
+
+    rentalPrice: z
+      .number({
+        error: "Rental price is required and must be a number",
+      })
+      .positive("Rental price must be greater than 0"),
+
+    stock: z
+      .number({
+        error: "Stock is required and must be a number",
+      })
+      .int("Stock must be an integer")
+      .nonnegative("Stock cannot be negative"),
+
+    condition: z
+      .enum(GearCondition, {
+        // Fixed: was "NEW, GOOD, FAIR, or POOR" — actual enum has no POOR,
+        // it has DAMAGED.
+        error: "Condition must be NEW, GOOD, FAIR, or DAMAGED",
+      })
+      .default("GOOD"),
+
+    categoryId: z
+      .string({ error: "Category ID is required" })
+      .uuid("Invalid category ID"),
+  }),
+});
+
+export type CreateGearItemSchemaType = z.infer<
+  typeof createGearItemSchema
+>["body"];
+
+
+export const updateGearItemSchema = z.object({
+  params: z.object({ id: z.uuid("Invalid gear id") }),
+  body: z
+    .object({
+      name: z.string().trim().min(1).max(200).optional(),
+      description: z.string().trim().min(1).optional(),
+      brand: z.string().trim().min(1).optional(),
+      image: z.url("Invalid image URL").optional(),
+      rentalPrice: z.number().positive().optional(),
+      stock: z.number().int().nonnegative().optional(),
+      condition: z.enum(GearCondition).optional(),
+      categoryId: z.uuid("Invalid category id").optional(),
+      isAvailable: z.boolean().optional(),
+    })
+    .strict(),
+});
+export type UpdateGearItemSchemaType = z.infer<
+  typeof updateGearItemSchema
+>["body"];
+
+export const updateOrderStatusSchema = z.object({
+  params: z.object({ id: z.string().uuid("Invalid order id") }),
+  body: z
+    .object({
+      status: z.enum(["CONFIRMED", "PICKED_UP", "RETURNED", "CANCELLED"]),
+    })
+    .strict(),
+});
+=== src/modules/review/review.validation.ts ===
+import { z } from "zod";
+
+export const createReviewSchema = z.object({
+  body: z
+    .object({
+      gearItemId: z.string().uuid("Invalid gear id"),
+      rentalOrderId: z.string().uuid("Invalid rental order id"),
+      rating: z.coerce.number().int().min(1).max(5),
+      comment: z.string().trim().max(1000).optional(),
+    })
+    .strict(),
+});
+
+=== src/modules/payment/payment.validation.ts ===
+import { z } from "zod";
+
+export const createPaymentSchema = z.object({
+  body: z
+    .object({
+      rentalOrderId: z.string().uuid("Invalid rental order id"),
+    })
+    .strict(),
+});
+
+export const paymentIdParamSchema = z.object({
+  params: z.object({ id: z.string().uuid("Invalid payment id") }),
+});
+
+export const confirmPaymentSchema = z
+  .object({
+    body: z
+      .object({
+        sessionId: z
+          .string({ error: "sessionId is required" })
+          .trim()
+          .min(1, "sessionId cannot be empty")
+          .startsWith("cs_", "Invalid Stripe session id"),
+      })
+      .strict()
+      .optional(),
+    query: z
+      .object({
+        session_id: z
+          .string()
+          .trim()
+          .min(1)
+          .startsWith("cs_", "Invalid Stripe session id")
+          .optional(),
+      })
+      .optional(),
+  })
+  .refine((data) => data.body?.sessionId || data.query?.session_id, {
+    message: "sessionId is required in body or session_id in query",
+  });
+
+=== src/modules/admin/admin.validation.ts ===
+import { z } from "zod";
+import { AccountStatus } from "../../../generated/prisma/enums";
+
+export const updateUserStatusSchema = z.object({
+  params: z.object({ id: z.string().uuid("Invalid user id") }),
+  body: z
+    .object({
+      accountStatus: z.enum(AccountStatus),
+    })
+    .strict(),
+});
+
+=== src/modules/auth/auth.validation.ts ===
+import { z } from "zod";
+
+export const loginSchema = z.object({
+  body: z.object({
+    email: z
+      .email("Please enter a valid email address")
+      .transform((email) => email.toLowerCase()),
+
+    password: z
+      .string({ error: "Password is required" })
+      .min(1, "Password cannot be empty"),
+  }),
+});
+
+export const refreshTokenSchema = z.object({
+  body: z.object({
+    refreshToken: z.string().min(1, "Refresh token cannot be empty").optional(),
+  }),
+});
+

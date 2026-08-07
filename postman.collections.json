@@ -1,0 +1,445 @@
+{
+  "info": {
+    "name": "Gear Rental API",
+    "description": "Full collection for the Gear Rental platform: auth, users, admin, categories, gear, provider, rentals, payment, and reviews.\n\nAssumptions:\n- Base URL is {{baseUrl}} (default http://localhost:5000/api/v1) — adjust to match your actual app.ts mount path.\n- Auth uses httpOnly cookies (accessToken/refreshToken) set on login. Enable 'Automatically follow redirects' and cookie jar in Postman, or copy the accessToken value into {{accessToken}} if you switch to Bearer auth instead.\n- {{gearId}}, {{categoryId}}, {{orderId}}, {{userId}}, {{paymentId}}, {{sessionId}} are collection variables — populate them after creating/listing resources, or edit inline.\n- The Payment > Webhook endpoint is NOT meant to be called from Postman — Stripe signs it with your webhook secret. Test it with `stripe listen --forward-to localhost:5000/api/v1/payment/webhook` and `stripe trigger checkout.session.completed` instead.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "gearId", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "paymentId", "value": "" },
+    { "key": "sessionId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "description": "Sets accessToken and refreshToken httpOnly cookies on success."
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/auth/refresh-token", "host": ["{{baseUrl}}"], "path": ["auth", "refresh-token"] },
+            "description": "Requires refreshToken cookie to be present (set automatically after login if cookie jar is enabled)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Register (Signup)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"customer@example.com\",\n  \"password\": \"Password123!\",\n  \"phone\": \"+8801700000000\",\n  \"address\": \"Dhaka, Bangladesh\",\n  \"role\": \"CUSTOMER\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/users/signup", "host": ["{{baseUrl}}"], "path": ["users", "signup"] },
+            "description": "role can be CUSTOMER or PROVIDER depending on your userRegisterSchema rules. Adjust fields to match your actual Zod schema."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories (Public)",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categories?page=1&limit=10&sortBy=createdAt&sortOrder=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "sortBy", "value": "createdAt" },
+                { "key": "sortOrder", "value": "desc" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gear (Public)",
+      "item": [
+        {
+          "name": "Get All Gear (with filters)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/gear?page=1&limit=10&sortBy=createdAt&sortOrder=desc&search=tent&categoryId={{categoryId}}&brand=Coleman&minPrice=10&maxPrice=100&isAvailable=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["gear"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "sortBy", "value": "createdAt" },
+                { "key": "sortOrder", "value": "desc" },
+                { "key": "search", "value": "tent" },
+                { "key": "categoryId", "value": "{{categoryId}}" },
+                { "key": "brand", "value": "Coleman" },
+                { "key": "minPrice", "value": "10" },
+                { "key": "maxPrice", "value": "100" },
+                { "key": "isAvailable", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Gear By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/gear/{{gearId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["gear", "{{gearId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Provider",
+      "item": [
+        {
+          "name": "Create Gear Item",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"4-Person Camping Tent\",\n  \"description\": \"Waterproof, easy setup, fits 4 people comfortably.\",\n  \"brand\": \"Coleman\",\n  \"image\": \"https://example.com/images/tent.jpg\",\n  \"rentalPrice\": 25.5,\n  \"stock\": 5,\n  \"condition\": \"GOOD\",\n  \"categoryId\": \"{{categoryId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/provider/gear", "host": ["{{baseUrl}}"], "path": ["provider", "gear"] },
+            "description": "Requires PROVIDER role (auth cookie/session)."
+          }
+        },
+        {
+          "name": "Get My Gear",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/provider/gear", "host": ["{{baseUrl}}"], "path": ["provider", "gear"] }
+          }
+        },
+        {
+          "name": "Update Gear",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rentalPrice\": 30,\n  \"stock\": 8,\n  \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/provider/gear/{{gearId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["provider", "gear", "{{gearId}}"]
+            }
+          }
+        },
+        {
+          "name": "Remove Gear",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/provider/gear/{{gearId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["provider", "gear", "{{gearId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get My Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/provider/orders", "host": ["{{baseUrl}}"], "path": ["provider", "orders"] }
+          }
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONFIRMED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/provider/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["provider", "orders", "{{orderId}}"]
+            },
+            "description": "Valid status transitions: PLACED->CONFIRMED/CANCELLED, CONFIRMED->CANCELLED, PAID->PICKED_UP, PICKED_UP->RETURNED."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rentals (Customer)",
+      "item": [
+        {
+          "name": "Create Rental Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"2026-08-10T00:00:00.000Z\",\n  \"endDate\": \"2026-08-13T00:00:00.000Z\",\n  \"items\": [\n    { \"gearItemId\": \"{{gearId}}\", \"quantity\": 1 }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/rentals", "host": ["{{baseUrl}}"], "path": ["rentals"] },
+            "description": "Requires CUSTOMER role."
+          }
+        },
+        {
+          "name": "Get My Rentals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/rentals", "host": ["{{baseUrl}}"], "path": ["rentals"] }
+          }
+        },
+        {
+          "name": "Get Rental By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rentals/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["rentals", "{{orderId}}"]
+            },
+            "description": "Accessible by the order's owner, the provider of any item in the order, or an admin."
+          }
+        },
+        {
+          "name": "Cancel Rental",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rentals/{{orderId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["rentals", "{{orderId}}", "cancel"]
+            },
+            "description": "Only allowed while order status is PLACED or CONFIRMED."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment",
+      "item": [
+        {
+          "name": "Create Checkout Session",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rentalOrderId\": \"{{orderId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/payment/create", "host": ["{{baseUrl}}"], "path": ["payment", "create"] },
+            "description": "Requires CUSTOMER role, and the rental order must already be status CONFIRMED (provider must confirm first via PATCH /provider/orders/:id). Returns { url, sessionId, paymentId } — copy sessionId into {{sessionId}} and open url in a browser to complete a test payment with card 4242 4242 4242 4242."
+          }
+        },
+        {
+          "name": "Confirm Payment (client-side check)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/payment/confirm", "host": ["{{baseUrl}}"], "path": ["payment", "confirm"] },
+            "description": "Manual/fallback confirmation — checks the session status directly with Stripe. The webhook is the authoritative source of truth; this is a backup for instant UI feedback after redirect. Only works for a session belonging to the authenticated customer."
+          }
+        },
+        {
+          "name": "Get My Payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/payment", "host": ["{{baseUrl}}"], "path": ["payment"] }
+          }
+        },
+        {
+          "name": "Get Payment By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payment/{{paymentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment", "{{paymentId}}"]
+            },
+            "description": "Accessible by the payment's owning customer or an ADMIN."
+          }
+        },
+        {
+          "name": "Webhook (do not call manually)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{baseUrl}}/payment/webhook", "host": ["{{baseUrl}}"], "path": ["payment", "webhook"] },
+            "description": "NOT for manual testing in Postman — Stripe signs this request with your webhook signing secret, which Postman can't reproduce. Test with the Stripe CLI instead:\n\nstripe listen --forward-to localhost:5000/api/v1/payment/webhook\nstripe trigger checkout.session.completed"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews (Customer)",
+      "item": [
+        {
+          "name": "Create Review",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gearItemId\": \"{{gearId}}\",\n  \"rating\": 5,\n  \"comment\": \"Great tent, easy to set up and stayed dry through heavy rain.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/reviews", "host": ["{{baseUrl}}"], "path": ["reviews"] },
+            "description": "Requires CUSTOMER role. NOTE: review.routes.ts was previously never mounted in app.ts, so this endpoint was unreachable until that was fixed — confirm your app.ts now includes app.use('/api/v1/reviews', reviewRoutes)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/admin/users", "host": ["{{baseUrl}}"], "path": ["admin", "users"] },
+            "description": "Requires ADMIN role."
+          }
+        },
+        {
+          "name": "Update User Status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"BANNED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", "{{userId}}"]
+            },
+            "description": "status must be one of ACTIVE, INACTIVE, BANNED. NOTE: controller currently reads req.body.accountStatus but schema validates body.status — fix controller before this works."
+          }
+        },
+        {
+          "name": "Get All Gear (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/gear?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "gear"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Rentals (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/rentals?page=1&limit=10&sortBy=createdAt&sortOrder=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "rentals"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "sortBy", "value": "createdAt" },
+                { "key": "sortOrder", "value": "desc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Camping\",\n  \"slug\": \"camping\",\n  \"description\": \"Tents, sleeping bags, and camping essentials.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/admin/categories", "host": ["{{baseUrl}}"], "path": ["admin", "categories"] }
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated description for camping gear.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "categories", "{{categoryId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "categories", "{{categoryId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -5,13 +5,16 @@ import path from "path";
 import config from "./config";
 import { globalErrorHandler } from "./middlewares/globalErrorHandler";
 import { notFound } from "./middlewares/notFound";
+import { adminRoutes } from "./modules/admin/admin.routes";
 import { authRoutes } from "./modules/auth/auth.routes";
-import { commentRoutes } from "./modules/comment/comment.route";
-import { likeRoutes } from "./modules/like/like.route";
-import { notificationRoutes } from "./modules/notification/notification.route";
-import { postRoutes } from "./modules/post/post.route";
-import { userRoutes } from "./modules/user/user.route";
-import { subscriptionRoutes } from "./modules/subscription/subscription.route";
+import { categoryRoutes } from "./modules/category/category.routes";
+import { gearRoutes } from "./modules/gear/gear.routes";
+import { paymentRoutes } from "./modules/payment/payment.routes";
+import { providerRoutes } from "./modules/provider/provider.routes";
+import { rentalRoutes } from "./modules/rental/rental.routes";
+import { reviewRoutes } from "./modules/review/review.routes";
+import { userRoutes } from "./modules/user/user.routes";
+import { paymentController } from "./modules/payment/payment.controller";
 
 const app: Application = express();
 
@@ -20,8 +23,13 @@ app.use(
     origin: config.clientOrigins,
     credentials: true,
   }),
-);app.use("/api/subscription/webhook", express.raw({ type: 'application/json' }))
+);
 
+app.use(
+  "/api/v1/payment/webhook",
+  express.raw({ type: "application/json" }),
+  paymentController.webhook,
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -33,13 +41,16 @@ app.get("/", (req: Request, res: Response) => {
 app.get("/postman.json", (req: Request, res: Response) => {
   res.sendFile(path.join(process.cwd(), "post-man-v2.json"));
 });
-app.use("/api/users", userRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/posts", postRoutes);
-app.use("/api/comments", commentRoutes);
-app.use("/api/likes", likeRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/subscriptions", subscriptionRoutes);
+
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/categories", categoryRoutes);
+app.use("/api/v1/gear", gearRoutes);
+app.use("/api/v1/provider", providerRoutes);
+app.use("/api/v1/rentals", rentalRoutes);
+app.use("/api/v1/payment", paymentRoutes);
+app.use("/api/v1/reviews", reviewRoutes);
 
 app.use(notFound);
 
